@@ -43,11 +43,12 @@ export default function ReservacionesPage() {
             }
             className="px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            <option value="">All Status</option>
-            <option value="CONFIRMED">Confirmed</option>
-            <option value="ATTENDED">Attended</option>
-            <option value="CANCELLED">Cancelled</option>
-            <option value="NO_SHOW">No Show</option>
+            <option value="">Todos los estados</option>
+            <option value="CONFIRMED">Confirmada</option>
+            <option value="PENDING_APPROVAL">Pendiente</option>
+            <option value="ATTENDED">Asistió</option>
+            <option value="CANCELLED">Cancelada</option>
+            <option value="NO_SHOW">No asistió</option>
           </select>
         </div>
 

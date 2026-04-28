@@ -180,3 +180,4 @@ Permite a los clientes registrar su asistencia de forma autónoma usando:
 
 Privado — uso exclusivo de Sarui Pilates Studio.
 # sarui-pilates-studio
+# sarui-pilates-studio

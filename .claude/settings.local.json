@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mysql *)",
+      "Read(//usr/local/bin/**)",
+      "Bash(brew list *)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/mysql *)",
+      "Bash(npx prisma *)",
+      "Bash(npm install *)",
+      "Bash(npm list *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)"
+    ]
+  }
+}

@@ -1,0 +1,453 @@
+// ============================================================
+// SaruiStudio — Prisma Schema
+// Estudio de Pilates · Oaxaca, México
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  ADMIN
+  INSTRUCTOR
+  CLIENT
+}
+
+enum ClassType {
+  FLOW
+  POWER
+  MOBILITY
+  MAT
+  GAP
+}
+
+enum ClassSubtype {
+  REFORMER
+  MAT
+  BARRE
+}
+
+enum PackageCategory {
+  REFORMER
+  MAT
+  BARRE
+  MIX
+}
+
+enum ModalidadActividad {
+  SESION_UNICA
+  POR_PAQUETE
+}
+
+enum ReservationStatus {
+  PENDING_APPROVAL
+  CONFIRMED
+  CANCELLED
+  NO_SHOW
+  ATTENDED
+  LATE
+}
+
+enum ReservationOrigin {
+  MEMBERSHIP
+  WALK_IN
+  PORTAL
+  PORTAL_REQUEST
+}
+
+enum AttendanceStatus {
+  ON_TIME
+  LATE
+  NO_SHOW
+}
+
+enum MembershipStatus {
+  ACTIVE
+  EXPIRED
+  EXHAUSTED
+  SUSPENDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  OTHER
+}
+
+// ============================================================
+// AUTH — Usuarios y Roles
+// ============================================================
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  role      Role      @default(CLIENT)
+  isActive  Boolean   @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  client     Client?
+  instructor Instructor?
+
+  refreshTokens RefreshToken[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique @db.VarChar(36)
+  userId    String
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// ============================================================
+// CLIENTES
+// ============================================================
+
+model Client {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  firstName   String
+  lastName    String
+  phone       String?
+  birthDate   DateTime?
+  notes       String?
+
+  // Kiosk access
+  qrCode      String    @unique  // UUID generado al crear el cliente
+  pin         String    // 4 dígitos hasheados
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberships  Membership[]
+  reservations Reservation[]
+  attendances  Attendance[]
+
+  @@index([userId])
+  @@index([qrCode])
+  @@map("clients")
+}
+
+// ============================================================
+// INSTRUCTORES
+// ============================================================
+
+model Instructor {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  firstName   String
+  lastName    String
+  phone       String?
+  bio         String?
+  avatarUrl   String?
+  specialties String?     // JSON string: ["FLOW","POWER","MOBILITY","MAT"]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classes Class[]
+
+  @@index([userId])
+  @@map("instructors")
+}
+
+// ============================================================
+// PAQUETES — Catálogo
+// ============================================================
+
+model Package {
+  id               String          @id @default(cuid())
+  name             String
+  category         PackageCategory
+  classSubtype     ClassSubtype?   // null para MIX
+  sessions         Int             // 1 = sesión única
+  price            Decimal         @db.Decimal(10, 2)
+  validityDays     Int             // vigencia en días desde activación
+  isActive         Boolean         @default(true)
+  description      String?
+  tipoActividadId  String?
+  tipoActividad    TipoActividad?  @relation(fields: [tipoActividadId], references: [id])
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  deletedAt        DateTime?
+
+  memberships Membership[]
+
+  @@index([category])
+  @@index([isActive])
+  @@map("packages")
+}
+
+// ============================================================
+// TIPOS DE ACTIVIDAD — Clasificación personalizada
+// ============================================================
+
+model TipoActividad {
+  id          String             @id @default(cuid())
+  nombre      String
+  descripcion String?
+  modalidad   ModalidadActividad
+  sesiones    Int?               // solo si POR_PAQUETE; null si SESION_UNICA
+  costo       Decimal            @db.Decimal(10, 2)
+  color       String?            // color hex para el calendario, ej: "#254F40"
+  isActive    Boolean            @default(true)
+
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  deletedAt   DateTime?
+
+  clases      Class[]
+  paquetes    Package[]
+
+  @@index([isActive])
+  @@map("tipos_actividad")
+}
+
+// Seed data — referencia de catálogo oficial del negocio:
+//
+// REFORMER
+//   Sesión Única   1 ses  $200   /  1 día
+//   6 Sesiones     6 ses  $850   / 20 días
+//   10 Sesiones   10 ses  $1500  / 30 días
+//   12 Sesiones   12 ses  $1800  / 30 días
+//   20 Sesiones   20 ses  $2500  / 40 días
+//
+// MAT
+//   Sesión Única   1 ses  $180   /  1 día
+//   6 Sesiones     6 ses  $750   / 20 días
+//   10 Sesiones   10 ses  $1300  / 30 días
+//   12 Sesiones   12 ses  $1500  / 30 días
+//   20 Sesiones   20 ses  $2200  / 40 días
+//
+// MIX (Reformer + Mat)
+//   8 Sesiones     8 ses  $1200  / 20 días
+//   10 Sesiones   10 ses  $1400  / 20 días
+//   12 Sesiones   12 ses  $1600  / 20 días
+
+// ============================================================
+// MEMBRESÍAS — Paquete asignado a un cliente
+// ============================================================
+
+model Membership {
+  id                   String           @id @default(cuid())
+  clientId             String
+  packageId            String
+  status               MembershipStatus @default(ACTIVE)
+
+  totalSessions        Int              // copia del paquete al momento de compra
+  sessionsUsed         Int              @default(0)
+  sessionsRemaining    Int              // = totalSessions - sessionsUsed
+  repositionUsed       Boolean          @default(false) // 1 reposición por periodo
+  repositionSession    DateTime?        // fecha de la clase repuesta
+
+  startDate            DateTime
+  expiresAt            DateTime
+
+  pricePaid            Decimal          @db.Decimal(10, 2)
+  paymentStatus        PaymentStatus    @default(PENDING)
+  paymentMethod        PaymentMethod?
+
+  notes                String?
+
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  deletedAt            DateTime?
+
+  client       Client        @relation(fields: [clientId], references: [id])
+  package      Package       @relation(fields: [packageId], references: [id])
+  reservations Reservation[]
+  payments     Payment[]
+
+  @@index([clientId])
+  @@index([packageId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("memberships")
+}
+
+// ============================================================
+// CLASES — Horarios y Tipos
+// ============================================================
+
+model Class {
+  id              String        @id @default(cuid())
+  instructorId    String
+  type            ClassType?
+  subtype         ClassSubtype?
+  title           String?       // nombre opcional / tema de la clase
+  tipoActividadId String?
+  tipoActividad   TipoActividad? @relation(fields: [tipoActividadId], references: [id])
+
+  startAt         DateTime
+  endAt           DateTime
+  capacity        Int
+  spotsBooked     Int           @default(0)
+
+  location        String?       // sala / equipo
+  notes           String?
+  isActive        Boolean       @default(true)
+  isCancelled     Boolean       @default(false)
+  cancelReason    String?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  instructor      Instructor     @relation(fields: [instructorId], references: [id])
+  reservations    Reservation[]
+
+  @@index([instructorId])
+  @@index([startAt])
+  @@index([type])
+  @@index([subtype])
+  @@map("classes")
+}
+
+// ============================================================
+// RESERVACIONES
+// ============================================================
+
+model Reservation {
+  id           String            @id @default(cuid())
+  clientId     String
+  classId      String
+  membershipId String?           // null si es walk-in / clase suelta
+
+  origin       ReservationOrigin
+  status       ReservationStatus @default(CONFIRMED)
+
+  // Política de cancelación: mínimo 5 horas antes
+  // Sin cancelar = se descuenta la sesión (NO_SHOW)
+  cancelledAt  DateTime?
+  cancelReason String?
+  // true = cancelado a tiempo (>= 5 h antes); no descuenta sesión
+  cancelledOnTime Boolean?
+
+  // Tolerancia de 10 min para check-in
+  checkedInAt  DateTime?
+
+  notes        String?
+
+  // Portal booking fields
+  portalWaConfirmed Boolean  @default(false)
+  portalDeclineReason String?
+  mercadoPagoPaymentId String?
+  mercadoPagoPreferenceId String?
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  deletedAt    DateTime?
+
+  client     Client      @relation(fields: [clientId], references: [id])
+  class      Class       @relation(fields: [classId], references: [id])
+  membership Membership? @relation(fields: [membershipId], references: [id])
+  attendance Attendance?
+  payment    Payment?    // para walk-in
+
+  @@unique([clientId, classId])
+  @@index([clientId])
+  @@index([classId])
+  @@index([membershipId])
+  @@index([status])
+  @@map("reservations")
+}
+
+// ============================================================
+// KIOSK / ASISTENCIA
+// ============================================================
+
+model Attendance {
+  id             String           @id @default(cuid())
+  clientId       String
+  reservationId  String           @unique
+  status         AttendanceStatus
+
+  // Método de check-in
+  checkedInAt    DateTime         @default(now())
+  checkInMethod  CheckInMethod
+
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  client      Client      @relation(fields: [clientId], references: [id])
+  reservation Reservation @relation(fields: [reservationId], references: [id])
+
+  @@index([clientId])
+  @@index([checkedInAt])
+  @@map("attendances")
+}
+
+enum CheckInMethod {
+  QR
+  PIN
+  MANUAL
+}
+
+// ============================================================
+// PAGOS
+// ============================================================
+
+model Payment {
+  id             String        @id @default(cuid())
+  membershipId   String?
+  reservationId  String?       @unique // para walk-in
+
+  amount         Decimal       @db.Decimal(10, 2)
+  method         PaymentMethod
+  status         PaymentStatus @default(PENDING)
+
+  reference      String?       // folio, número de transacción
+  notes          String?
+
+  paidAt         DateTime?
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  membership  Membership?  @relation(fields: [membershipId], references: [id])
+  reservation Reservation? @relation(fields: [reservationId], references: [id])
+
+  @@index([membershipId])
+  @@index([status])
+  @@index([paidAt])
+  @@map("payments")
+}

@@ -1,0 +1,1 @@
+- [Convenciones del proyecto Sarui Studio](project-conventions.md) — Stack, paleta, hooks, badge variants, sarui-table, animaciones spring, rutas

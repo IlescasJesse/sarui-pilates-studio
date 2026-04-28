@@ -1,0 +1,182 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ─── Sarui Pilates Studio – brand palette ─── */
+    --background: 62 100% 96%;           /* #FDFFEC  Ivory */
+    --foreground: 0 0% 10%;             /* #1a1a1a  casi negro */
+
+    --card: 62 100% 96%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    --primary: 162 36% 23%;             /* #254F40  Te Papa Green */
+    --primary-foreground: 62 100% 96%; /* Ivory sobre verde */
+
+    --secondary: 177 12% 51%;           /* #749390  Juniper */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 60 30% 90%;
+    --muted-foreground: 0 0% 45%;
+
+    --accent: 66 100% 86%;              /* #F6FFB5  Chiffon */
+    --accent-foreground: 162 36% 18%;  /* verde oscuro sobre chiffon */
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 162 20% 72%;
+    --input: 162 20% 72%;
+    --ring: 162 36% 23%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 162 36% 8%;
+    --foreground: 62 100% 96%;
+
+    --card: 162 36% 11%;
+    --card-foreground: 62 100% 96%;
+
+    --popover: 162 36% 8%;
+    --popover-foreground: 62 100% 96%;
+
+    --primary: 162 36% 40%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 177 12% 35%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 162 20% 18%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 66 60% 25%;
+    --accent-foreground: 66 100% 86%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 162 20% 25%;
+    --input: 162 20% 25%;
+    --ring: 162 36% 40%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+/* ─── FullCalendar overrides ─── */
+.fc {
+  --fc-border-color: hsl(var(--border));
+  --fc-button-bg-color: hsl(var(--primary));
+  --fc-button-border-color: hsl(var(--primary));
+  --fc-button-hover-bg-color: hsl(162 36% 18%);
+  --fc-button-hover-border-color: hsl(162 36% 18%);
+  --fc-button-active-bg-color: hsl(162 36% 15%);
+  --fc-button-active-border-color: hsl(162 36% 15%);
+  --fc-today-bg-color: hsl(66 100% 86% / 0.35);
+  --fc-highlight-color: hsl(66 100% 86% / 0.5);
+  --fc-event-border-color: transparent;
+  --fc-page-bg-color: hsl(var(--background));
+  --fc-neutral-bg-color: hsl(var(--muted));
+  --fc-list-event-hover-bg-color: hsl(var(--accent));
+}
+
+.fc .fc-toolbar-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  text-transform: capitalize;
+}
+
+.fc .fc-col-header-cell-cushion,
+.fc .fc-daygrid-day-number {
+  color: hsl(var(--foreground));
+  text-decoration: none;
+}
+
+.fc .fc-timegrid-slot-label {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.fc .fc-event {
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 1px 4px;
+  cursor: pointer;
+  border: none;
+}
+
+.fc .fc-button {
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.3rem 0.7rem;
+}
+
+.fc .fc-button:focus {
+  box-shadow: 0 0 0 2px hsl(var(--ring));
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--secondary));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
+}
+
+@layer components {
+  /* Tabla con cabecera verde y filas contrastadas */
+  .sarui-table thead tr {
+    background-color: #254F40;
+    color: #F6FFB5;
+  }
+  .sarui-table thead th {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider;
+    color: #F6FFB5;
+  }
+  .sarui-table tbody tr {
+    @apply border-b border-border transition-colors;
+  }
+  .sarui-table tbody tr:hover {
+    background-color: rgba(246, 255, 181, 0.18);
+  }
+  .sarui-table tbody tr:nth-child(even) {
+    background-color: rgba(37, 79, 64, 0.04);
+  }
+  .sarui-table tbody td {
+    @apply px-4 py-3 text-sm;
+  }
+}

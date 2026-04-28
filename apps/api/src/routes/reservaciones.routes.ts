@@ -1,0 +1,333 @@
+import { Router, Request, Response, NextFunction } from 'express';
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { requireRole } from '../middlewares/role.middleware';
+import { prisma } from '../config/database';
+import { ApiSuccess, ApiError } from '../utils/response';
+import { z } from 'zod';
+import type { ReservationOrigin } from '@prisma/client';
+
+const router = Router();
+
+router.use(authMiddleware);
+
+const reservacionSchema = z.object({
+  clientId: z.string().min(1, 'Client ID is required'),
+  classId: z.string().min(1, 'Class ID is required'),
+  membershipId: z.string().optional(),
+  origin: z.enum(['MEMBERSHIP', 'WALK_IN']).default('MEMBERSHIP'),
+  notes: z.string().optional(),
+});
+
+// GET /api/v1/reservaciones
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { clientId, classId, status, date } = req.query as Record<string, string>;
+
+    const where: Record<string, unknown> = { deletedAt: null };
+    if (clientId) where.clientId = clientId;
+    if (classId) where.classId = classId;
+    if (status) where.status = status;
+    if (date) {
+      const start = new Date(date);
+      const end = new Date(date);
+      end.setDate(end.getDate() + 1);
+      where.class = { startAt: { gte: start, lt: end } };
+    }
+
+    const reservaciones = await prisma.reservation.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        client: { select: { id: true, firstName: true, lastName: true } },
+        class: { select: { id: true, title: true, startAt: true, endAt: true, type: true } },
+      },
+    });
+
+    ApiSuccess(res, reservaciones);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/v1/reservaciones
+router.post(
+  '/',
+  requireRole('ADMIN', 'INSTRUCTOR'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const parseResult = reservacionSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid reservation data',
+            details: parseResult.error.errors.map((e) => ({
+              field: e.path.join('.'),
+              message: e.message,
+            })),
+          },
+        });
+        return;
+      }
+
+      const clase = await prisma.class.findUnique({
+        where: { id: parseResult.data.classId },
+        include: { _count: { select: { reservations: true } } },
+      });
+
+      if (!clase) {
+        ApiError(res, 'NOT_FOUND', 'Class not found', 404);
+        return;
+      }
+
+      if (clase._count.reservations >= clase.capacity) {
+        ApiError(res, 'CLASS_FULL', 'Class is at full capacity', 409);
+        return;
+      }
+
+      const existing = await prisma.reservation.findFirst({
+        where: {
+          clientId: parseResult.data.clientId,
+          classId: parseResult.data.classId,
+          status: { not: 'CANCELLED' },
+        },
+      });
+
+      if (existing) {
+        ApiError(res, 'ALREADY_RESERVED', 'Client already has a reservation for this class', 409);
+        return;
+      }
+
+      // Transacción: crear reservación + descontar sesión de membresía + incrementar spotsBooked
+      const reservacion = await prisma.$transaction(async (tx) => {
+        const res = await tx.reservation.create({
+          data: {
+            clientId: parseResult.data.clientId,
+            classId: parseResult.data.classId,
+            membershipId: parseResult.data.membershipId,
+            origin: parseResult.data.origin as ReservationOrigin,
+            status: 'CONFIRMED',
+            notes: parseResult.data.notes,
+          },
+          include: {
+            client: { select: { id: true, firstName: true, lastName: true } },
+            class: { select: { id: true, title: true, startAt: true, type: true, subtype: true } },
+            membership: { include: { package: { select: { name: true } } } },
+          },
+        });
+
+        // Incrementar lugares ocupados en la clase
+        await tx.class.update({
+          where: { id: parseResult.data.classId },
+          data: { spotsBooked: { increment: 1 } },
+        });
+
+        // Descontar sesión de la membresía si aplica
+        if (parseResult.data.membershipId) {
+          const membership = await tx.membership.findUnique({
+            where: { id: parseResult.data.membershipId },
+          });
+          if (membership && membership.sessionsRemaining > 0) {
+            await tx.membership.update({
+              where: { id: parseResult.data.membershipId },
+              data: {
+                sessionsUsed: { increment: 1 },
+                sessionsRemaining: { decrement: 1 },
+                status: membership.sessionsRemaining - 1 <= 0 ? 'EXHAUSTED' : 'ACTIVE',
+              },
+            });
+          }
+        }
+
+        return res;
+      });
+
+      ApiSuccess(res, reservacion, 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// GET /api/v1/reservaciones/:id
+router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const reservacion = await prisma.reservation.findUnique({
+      where: { id: req.params.id },
+      include: {
+        client: true,
+        class: { include: { instructor: { select: { id: true, firstName: true, lastName: true } } } },
+        membership: { include: { package: true } },
+      },
+    });
+
+    if (!reservacion) {
+      ApiError(res, 'NOT_FOUND', 'Reservation not found', 404);
+      return;
+    }
+
+    ApiSuccess(res, reservacion);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PATCH /api/v1/reservaciones/:id
+router.patch(
+  '/:id',
+  requireRole('ADMIN'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { status } = req.body as { status?: string };
+
+      const reservacion = await prisma.reservation.update({
+        where: { id: req.params.id },
+        data: { status: status as 'CONFIRMED' | 'CANCELLED' | 'ATTENDED' | 'NO_SHOW' },
+      });
+
+      ApiSuccess(res, reservacion);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// DELETE /api/v1/reservaciones/:id
+router.delete(
+  '/:id',
+  requireRole('ADMIN'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await prisma.reservation.update({
+        where: { id: req.params.id },
+        data: { status: 'CANCELLED', cancelledAt: new Date() },
+      });
+
+      ApiSuccess(res, { message: 'Reservación cancelada' });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// PATCH /api/v1/reservaciones/:id/aprobar  — solo ADMIN/INSTRUCTOR
+router.patch(
+  '/:id/aprobar',
+  requireRole('ADMIN', 'INSTRUCTOR'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const reservacion = await prisma.reservation.findUnique({
+        where: { id: req.params.id },
+      });
+
+      if (!reservacion) {
+        ApiError(res, 'NOT_FOUND', 'Reservación no encontrada', 404);
+        return;
+      }
+
+      if (reservacion.status !== 'PENDING_APPROVAL') {
+        ApiError(res, 'INVALID_STATUS', 'Solo se pueden aprobar solicitudes pendientes', 400);
+        return;
+      }
+
+      const updated = await prisma.reservation.update({
+        where: { id: req.params.id },
+        data: { status: 'CONFIRMED' },
+        include: {
+          client: { select: { firstName: true, lastName: true } },
+          class: { select: { title: true, startAt: true } },
+        },
+      });
+
+      ApiSuccess(res, updated);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// PATCH /api/v1/reservaciones/:id/declinar  — solo ADMIN/INSTRUCTOR
+router.patch(
+  '/:id/declinar',
+  requireRole('ADMIN', 'INSTRUCTOR'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { razon } = req.body as { razon?: string };
+
+      const reservacion = await prisma.reservation.findUnique({
+        where: { id: req.params.id },
+      });
+
+      if (!reservacion) {
+        ApiError(res, 'NOT_FOUND', 'Reservación no encontrada', 404);
+        return;
+      }
+
+      if (reservacion.status !== 'PENDING_APPROVAL') {
+        ApiError(res, 'INVALID_STATUS', 'Solo se pueden declinar solicitudes pendientes', 400);
+        return;
+      }
+
+      const updated = await prisma.$transaction(async (tx) => {
+        const r = await tx.reservation.update({
+          where: { id: req.params.id },
+          data: {
+            status: 'CANCELLED',
+            cancelledAt: new Date(),
+            portalDeclineReason: razon ?? null,
+          },
+        });
+
+        // Liberar el spot en la clase
+        await tx.class.update({
+          where: { id: reservacion.classId },
+          data: { spotsBooked: { decrement: 1 } },
+        });
+
+        return r;
+      });
+
+      ApiSuccess(res, updated);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// GET /api/v1/reservaciones/portal  — reservas del portal para el admin
+router.get(
+  '/portal',
+  requireRole('ADMIN', 'INSTRUCTOR'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { status } = req.query as Record<string, string>;
+
+      const where: Record<string, unknown> = {
+        deletedAt: null,
+        origin: { in: ['PORTAL', 'PORTAL_REQUEST'] },
+      };
+      if (status) where.status = status;
+
+      const reservaciones = await prisma.reservation.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          client: { select: { id: true, firstName: true, lastName: true, phone: true } },
+          class: {
+            include: {
+              tipoActividad: { select: { nombre: true, color: true } },
+              instructor: { select: { firstName: true, lastName: true } },
+            },
+          },
+        },
+      });
+
+      ApiSuccess(res, reservaciones);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+export default router;

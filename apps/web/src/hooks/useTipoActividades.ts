@@ -7,9 +7,6 @@ export interface TipoActividad {
   id: string;
   nombre: string;
   descripcion?: string;
-  modalidad: "SESION_UNICA" | "POR_PAQUETE";
-  sesiones?: number | null;
-  costo: number;
   color?: string;
   isActive: boolean;
   createdAt: string;

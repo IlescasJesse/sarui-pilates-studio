@@ -2,27 +2,25 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Layers, Package, Activity } from "lucide-react";
-import { PaquetesTable } from "@/components/paquetes/PaquetesTable";
-import { PaqueteForm } from "@/components/paquetes/PaqueteForm";
+import { Layers, Activity, DollarSign, Clock } from "lucide-react";
 import { TipoActividadTable } from "@/components/catalogos/TipoActividadTable";
+import { PreciosTab } from "@/components/catalogos/PreciosTab";
+import { TipoMembresiaTable } from "@/components/catalogos/TipoMembresiaTable";
 import { tabTransition, staggerContainer, staggerItem } from "@/lib/animations";
 
-type Tab = "paquetes" | "actividades";
+type Tab = "actividades" | "precios" | "membresias";
+
+const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
+  { id: "actividades", label: "Tipos de Actividad", icon: Activity },
+  { id: "precios",     label: "Precios",             icon: DollarSign },
+  { id: "membresias",  label: "Membresías",          icon: Clock },
+];
 
 export default function CatalogosPage() {
   const [tab, setTab] = useState<Tab>("actividades");
-  const [paqueteFormOpen, setPaqueteFormOpen] = useState(false);
-  const [editandoPaquete, setEditandoPaquete] = useState<string | undefined>(undefined);
-
-  const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
-    { id: "actividades", label: "Tipos de Actividad", icon: Activity },
-    { id: "paquetes", label: "Paquetes", icon: Package },
-  ];
 
   return (
     <div className="p-6 space-y-6">
-      {/* Encabezado */}
       <motion.div
         variants={staggerContainer}
         initial="initial"
@@ -36,7 +34,7 @@ export default function CatalogosPage() {
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Catálogos</h1>
             <p className="text-sm text-muted-foreground">
-              Gestiona tipos de actividad y paquetes disponibles
+              Actividades, precios por paquete y tipos de membresía
             </p>
           </div>
         </motion.div>
@@ -67,7 +65,7 @@ export default function CatalogosPage() {
         ))}
       </div>
 
-      {/* Contenido de la pestaña */}
+      {/* Contenido */}
       <AnimatePresence mode="wait">
         <motion.div
           key={tab}
@@ -77,33 +75,8 @@ export default function CatalogosPage() {
           exit="exit"
         >
           {tab === "actividades" && <TipoActividadTable />}
-          {tab === "paquetes" && (
-            <div>
-              <div className="flex justify-end mb-4">
-                <button
-                  onClick={() => {
-                    setEditandoPaquete(undefined);
-                    setPaqueteFormOpen(true);
-                  }}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#254F40] text-[#F6FFB5] text-sm font-medium shadow-sm hover:bg-[#1e3d31] active:scale-95 transition-all"
-                >
-                  <Package className="w-4 h-4" />
-                  Nuevo paquete
-                </button>
-              </div>
-              <PaquetesTable
-                onEdit={(id) => {
-                  setEditandoPaquete(id);
-                  setPaqueteFormOpen(true);
-                }}
-              />
-              <PaqueteForm
-                isOpen={paqueteFormOpen}
-                onClose={() => setPaqueteFormOpen(false)}
-                paqueteId={editandoPaquete}
-              />
-            </div>
-          )}
+          {tab === "precios"     && <PreciosTab />}
+          {tab === "membresias"  && <TipoMembresiaTable />}
         </motion.div>
       </AnimatePresence>
     </div>

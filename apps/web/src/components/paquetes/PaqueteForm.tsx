@@ -54,9 +54,7 @@ export function PaqueteForm({ isOpen, onClose, paqueteId, onSuccess }: PaqueteFo
 
   // Solo actividades POR_PAQUETE
   const { data: tiposActividad = [] } = useTipoActividades();
-  const actividadesPorPaquete = tiposActividad.filter(
-    (t) => t.modalidad === "POR_PAQUETE" && t.isActive
-  );
+  const actividadesPorPaquete = tiposActividad.filter((t) => t.isActive);
 
   const {
     register,

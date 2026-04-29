@@ -43,10 +43,6 @@ enum PackageCategory {
   MIX
 }
 
-enum ModalidadActividad {
-  SESION_UNICA
-  POR_PAQUETE
-}
 
 enum ReservationStatus {
   PENDING_APPROVAL
@@ -222,46 +218,56 @@ model Package {
 // ============================================================
 
 model TipoActividad {
-  id          String             @id @default(cuid())
+  id          String    @id @default(cuid())
   nombre      String
   descripcion String?
-  modalidad   ModalidadActividad
-  sesiones    Int?               // solo si POR_PAQUETE; null si SESION_UNICA
-  costo       Decimal            @db.Decimal(10, 2)
-  color       String?            // color hex para el calendario, ej: "#254F40"
-  isActive    Boolean            @default(true)
+  color       String?
+  isActive    Boolean   @default(true)
 
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  clases      Class[]
-  paquetes    Package[]
+  clases         Class[]
+  paquetes       Package[]
+  tiposMembresia TipoMembresiaActividad[]
 
   @@index([isActive])
   @@map("tipos_actividad")
 }
 
-// Seed data — referencia de catálogo oficial del negocio:
-//
-// REFORMER
-//   Sesión Única   1 ses  $200   /  1 día
-//   6 Sesiones     6 ses  $850   / 20 días
-//   10 Sesiones   10 ses  $1500  / 30 días
-//   12 Sesiones   12 ses  $1800  / 30 días
-//   20 Sesiones   20 ses  $2500  / 40 días
-//
-// MAT
-//   Sesión Única   1 ses  $180   /  1 día
-//   6 Sesiones     6 ses  $750   / 20 días
-//   10 Sesiones   10 ses  $1300  / 30 días
-//   12 Sesiones   12 ses  $1500  / 30 días
-//   20 Sesiones   20 ses  $2200  / 40 días
-//
-// MIX (Reformer + Mat)
-//   8 Sesiones     8 ses  $1200  / 20 días
-//   10 Sesiones   10 ses  $1400  / 20 días
-//   12 Sesiones   12 ses  $1600  / 20 días
+// ============================================================
+// TIPOS DE MEMBRESÍA — Catálogo tiempo-libre (sin precios aún)
+// ============================================================
+
+model TipoMembresia {
+  id           String    @id @default(cuid())
+  nombre       String
+  descripcion  String?
+  duracionDias Int
+  isActive     Boolean   @default(true)
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  actividades  TipoMembresiaActividad[]
+
+  @@index([isActive])
+  @@map("tipos_membresia")
+}
+
+model TipoMembresiaActividad {
+  id              String        @id @default(cuid())
+  tipoMembresiaId String
+  tipoActividadId String
+
+  tipoMembresia   TipoMembresia @relation(fields: [tipoMembresiaId], references: [id], onDelete: Cascade)
+  tipoActividad   TipoActividad @relation(fields: [tipoActividadId], references: [id])
+
+  @@unique([tipoMembresiaId, tipoActividadId])
+  @@map("tipos_membresia_actividades")
+}
 
 // ============================================================
 // MEMBRESÍAS — Paquete asignado a un cliente

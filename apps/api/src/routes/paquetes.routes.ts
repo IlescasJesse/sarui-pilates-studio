@@ -30,7 +30,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       orderBy: { price: 'asc' },
       include: {
         tipoActividad: {
-          select: { id: true, nombre: true, modalidad: true, color: true },
+          select: { id: true, nombre: true, color: true },
         },
       },
     });
@@ -70,7 +70,7 @@ router.post(
           ...(classSubtype ? { classSubtype: classSubtype as ClassSubtype } : {}),
         },
         include: {
-          tipoActividad: { select: { id: true, nombre: true, modalidad: true, color: true } },
+          tipoActividad: { select: { id: true, nombre: true, color: true } },
         },
       });
 
@@ -87,7 +87,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     const paquete = await prisma.package.findUnique({
       where: { id: req.params.id },
       include: {
-        tipoActividad: { select: { id: true, nombre: true, modalidad: true, color: true } },
+        tipoActividad: { select: { id: true, nombre: true, color: true } },
       },
     });
 

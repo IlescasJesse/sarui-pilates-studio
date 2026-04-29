@@ -12,23 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TipoActividadForm } from "./TipoActividadForm";
 import { staggerContainer, staggerItem } from "@/lib/animations";
-import { formatCurrency } from "@/lib/utils";
 
 export function TipoActividadTable() {
   const { data = [], isLoading } = useTipoActividades();
   const deleteMutation = useDeleteTipoActividad();
   const [formOpen, setFormOpen] = useState(false);
   const [editando, setEditando] = useState<TipoActividad | null>(null);
-
-  const handleEdit = (t: TipoActividad) => {
-    setEditando(t);
-    setFormOpen(true);
-  };
-
-  const handleNuevo = () => {
-    setEditando(null);
-    setFormOpen(true);
-  };
 
   if (isLoading) {
     return (
@@ -43,7 +32,7 @@ export function TipoActividadTable() {
   return (
     <div>
       <div className="flex justify-end mb-4">
-        <Button onClick={handleNuevo}>
+        <Button onClick={() => { setEditando(null); setFormOpen(true); }}>
           <Plus className="w-4 h-4 mr-2" />
           Nueva actividad
         </Button>
@@ -52,7 +41,7 @@ export function TipoActividadTable() {
       {data.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <p className="text-base">Sin tipos de actividad registrados</p>
-          <p className="text-sm mt-1">Crea el primer tipo usando el botón de arriba</p>
+          <p className="text-sm mt-1">Crea el primero usando el botón de arriba</p>
         </div>
       ) : (
         <div className="rounded-xl border border-border overflow-hidden shadow-sm">
@@ -65,9 +54,6 @@ export function TipoActividadTable() {
             <thead>
               <tr>
                 <th>Actividad</th>
-                <th>Modalidad</th>
-                <th>Sesiones</th>
-                <th>Costo</th>
                 <th>Color</th>
                 <th>Estado</th>
                 <th className="text-center">Acciones</th>
@@ -78,20 +64,21 @@ export function TipoActividadTable() {
                 {data.map((t) => (
                   <motion.tr key={t.id} variants={staggerItem} layout>
                     <td>
-                      <div>
-                        <p className="font-medium text-gray-900">{t.nombre}</p>
-                        {t.descripcion && (
-                          <p className="text-xs text-muted-foreground">{t.descripcion}</p>
+                      <div className="flex items-center gap-2">
+                        {t.color && (
+                          <span
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: t.color }}
+                          />
                         )}
+                        <div>
+                          <p className="font-medium text-gray-900">{t.nombre}</p>
+                          {t.descripcion && (
+                            <p className="text-xs text-muted-foreground">{t.descripcion}</p>
+                          )}
+                        </div>
                       </div>
                     </td>
-                    <td>
-                      <Badge variant={t.modalidad === "POR_PAQUETE" ? "default" : "secondary"}>
-                        {t.modalidad === "POR_PAQUETE" ? "Por paquete" : "Sesión única"}
-                      </Badge>
-                    </td>
-                    <td>{t.sesiones ?? "—"}</td>
-                    <td className="font-medium">{formatCurrency(t.costo)}</td>
                     <td>
                       {t.color && (
                         <div className="flex items-center gap-2">
@@ -114,8 +101,7 @@ export function TipoActividadTable() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => handleEdit(t)}
-                          aria-label={`Editar ${t.nombre}`}
+                          onClick={() => { setEditando(t); setFormOpen(true); }}
                         >
                           <Edit2 className="w-4 h-4" />
                         </Button>
@@ -124,7 +110,6 @@ export function TipoActividadTable() {
                           size="icon"
                           className="h-8 w-8 text-destructive hover:text-destructive"
                           onClick={() => deleteMutation.mutate(t.id)}
-                          aria-label={`Eliminar ${t.nombre}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

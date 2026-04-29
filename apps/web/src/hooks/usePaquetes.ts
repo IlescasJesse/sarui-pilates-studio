@@ -12,7 +12,6 @@ export type ClassSubtype = "REFORMER" | "MAT";
 export interface TipoActividadResumen {
   id: string;
   nombre: string;
-  modalidad: "SESION_UNICA" | "POR_PAQUETE";
   color?: string;
 }
 

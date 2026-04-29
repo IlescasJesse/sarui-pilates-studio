@@ -9,6 +9,7 @@ import instructoresRoutes from './instructores.routes';
 import kioskRoutes from './kiosk.routes';
 import dashboardRoutes from './dashboard.routes';
 import tipoActividadesRoutes from './tipo-actividades.routes';
+import tipoMembresiasRoutes from './tipo-membresias.routes';
 import portalRoutes from './portal.routes';
 import webhookRoutes from './webhook.routes';
 
@@ -24,6 +25,7 @@ router.use('/portal', portalRoutes);
 router.use('/clientes', clientesRoutes);
 router.use('/paquetes', paquetesRoutes);
 router.use('/tipo-actividades', tipoActividadesRoutes);
+router.use('/tipo-membresias', tipoMembresiasRoutes);
 router.use('/membresias', membresiasRoutes);
 router.use('/clases', clasesRoutes);
 router.use('/reservaciones', reservacionesRoutes);

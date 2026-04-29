@@ -29,7 +29,16 @@ router.get('/clases', async (req: Request, res: Response, next: NextFunction) =>
       include: {
         instructor: { select: { id: true, firstName: true, lastName: true } },
         tipoActividad: {
-          select: { id: true, nombre: true, color: true, modalidad: true, costo: true },
+          select: {
+            id: true,
+            nombre: true,
+            color: true,
+            paquetes: {
+              where: { sessions: 1, isActive: true },
+              select: { price: true },
+              take: 1,
+            },
+          },
         },
       },
     });
@@ -45,7 +54,7 @@ router.get('/clases', async (req: Request, res: Response, next: NextFunction) =>
       spotsBooked: c.spotsBooked,
       spotsLeft: c.capacity - c.spotsBooked,
       location: c.location,
-      costo: c.tipoActividad?.costo ?? null,
+      costo: c.tipoActividad?.paquetes?.[0]?.price ?? null,
     }));
 
     ApiSuccess(res, result);
@@ -64,7 +73,16 @@ router.get('/clases/:id', async (req: Request, res: Response, next: NextFunction
       include: {
         instructor: { select: { id: true, firstName: true, lastName: true } },
         tipoActividad: {
-          select: { id: true, nombre: true, color: true, modalidad: true, costo: true },
+          select: {
+            id: true,
+            nombre: true,
+            color: true,
+            paquetes: {
+              where: { sessions: 1, isActive: true },
+              select: { price: true },
+              take: 1,
+            },
+          },
         },
       },
     });
@@ -85,7 +103,7 @@ router.get('/clases/:id', async (req: Request, res: Response, next: NextFunction
       spotsBooked: clase.spotsBooked,
       spotsLeft: clase.capacity - clase.spotsBooked,
       location: clase.location,
-      costo: clase.tipoActividad?.costo ?? null,
+      costo: clase.tipoActividad?.paquetes?.[0]?.price ?? null,
     });
   } catch (error) {
     next(error);
@@ -145,7 +163,14 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
     // Verificar que la clase existe y tiene spots
     const clase = await prisma.class.findUnique({
       where: { id: claseId, deletedAt: null, isActive: true, isCancelled: false },
-      include: { tipoActividad: true },
+      include: {
+        tipoActividad: {
+          select: {
+            nombre: true,
+            paquetes: { where: { sessions: 1, isActive: true }, select: { price: true }, take: 1 },
+          },
+        },
+      },
     });
 
     if (!clase) {
@@ -192,8 +217,8 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
         return r;
       });
 
-      // 2. Crear preferencia de MercadoPago
-      const monto = Number(clase.tipoActividad?.costo ?? 0);
+      // 2. Crear preferencia de MercadoPago — precio de sesión única del paquete
+      const monto = Number(clase.tipoActividad?.paquetes?.[0]?.price ?? 0);
       if (monto === 0) {
         ApiError(res, 'INVALID_AMOUNT', 'Esta clase no tiene costo configurado', 400);
         return;

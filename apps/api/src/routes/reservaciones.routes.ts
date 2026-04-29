@@ -71,18 +71,12 @@ router.post(
         return;
       }
 
-      const clase = await prisma.class.findUnique({
+      const claseExiste = await prisma.class.findUnique({
         where: { id: parseResult.data.classId },
-        include: { _count: { select: { reservations: true } } },
+        select: { id: true },
       });
-
-      if (!clase) {
+      if (!claseExiste) {
         ApiError(res, 'NOT_FOUND', 'Class not found', 404);
-        return;
-      }
-
-      if (clase._count.reservations >= clase.capacity) {
-        ApiError(res, 'CLASS_FULL', 'Class is at full capacity', 409);
         return;
       }
 
@@ -93,15 +87,22 @@ router.post(
           status: { not: 'CANCELLED' },
         },
       });
-
       if (existing) {
         ApiError(res, 'ALREADY_RESERVED', 'Client already has a reservation for this class', 409);
         return;
       }
 
-      // Transacción: crear reservación + descontar sesión de membresía + incrementar spotsBooked
       const reservacion = await prisma.$transaction(async (tx) => {
-        const res = await tx.reservation.create({
+        // Incremento atómico: solo actualiza si hay lugares disponibles
+        const slotsUpdated = await tx.$executeRaw`
+          UPDATE \`Class\` SET spotsBooked = spotsBooked + 1
+          WHERE id = ${parseResult.data.classId} AND spotsBooked < capacity
+        `;
+        if (slotsUpdated === 0) {
+          throw Object.assign(new Error('CLASS_FULL'), { code: 'CLASS_FULL' });
+        }
+
+        const created = await tx.reservation.create({
           data: {
             clientId: parseResult.data.clientId,
             classId: parseResult.data.classId,
@@ -117,13 +118,6 @@ router.post(
           },
         });
 
-        // Incrementar lugares ocupados en la clase
-        await tx.class.update({
-          where: { id: parseResult.data.classId },
-          data: { spotsBooked: { increment: 1 } },
-        });
-
-        // Descontar sesión de la membresía si aplica
         if (parseResult.data.membershipId) {
           const membership = await tx.membership.findUnique({
             where: { id: parseResult.data.membershipId },
@@ -140,10 +134,49 @@ router.post(
           }
         }
 
-        return res;
+        return created;
       });
 
       ApiSuccess(res, reservacion, 201);
+    } catch (error: unknown) {
+      if ((error as { code?: string }).code === 'CLASS_FULL') {
+        ApiError(res, 'CLASS_FULL', 'Class is at full capacity', 409);
+        return;
+      }
+      next(error);
+    }
+  }
+);
+
+// GET /api/v1/reservaciones/portal  — DEBE ir antes de /:id para que Express no lo capture como parámetro
+router.get(
+  '/portal',
+  requireRole('ADMIN', 'INSTRUCTOR'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { status } = req.query as Record<string, string>;
+
+      const where: Record<string, unknown> = {
+        deletedAt: null,
+        origin: { in: ['PORTAL', 'PORTAL_REQUEST'] },
+      };
+      if (status) where.status = status;
+
+      const reservaciones = await prisma.reservation.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          client: { select: { id: true, firstName: true, lastName: true, phone: true } },
+          class: {
+            include: {
+              tipoActividad: { select: { nombre: true, color: true } },
+              instructor: { select: { firstName: true, lastName: true } },
+            },
+          },
+        },
+      });
+
+      ApiSuccess(res, reservaciones);
     } catch (error) {
       next(error);
     }
@@ -289,41 +322,6 @@ router.patch(
       });
 
       ApiSuccess(res, updated);
-    } catch (error) {
-      next(error);
-    }
-  }
-);
-
-// GET /api/v1/reservaciones/portal  — reservas del portal para el admin
-router.get(
-  '/portal',
-  requireRole('ADMIN', 'INSTRUCTOR'),
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { status } = req.query as Record<string, string>;
-
-      const where: Record<string, unknown> = {
-        deletedAt: null,
-        origin: { in: ['PORTAL', 'PORTAL_REQUEST'] },
-      };
-      if (status) where.status = status;
-
-      const reservaciones = await prisma.reservation.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          client: { select: { id: true, firstName: true, lastName: true, phone: true } },
-          class: {
-            include: {
-              tipoActividad: { select: { nombre: true, color: true } },
-              instructor: { select: { firstName: true, lastName: true } },
-            },
-          },
-        },
-      });
-
-      ApiSuccess(res, reservaciones);
     } catch (error) {
       next(error);
     }

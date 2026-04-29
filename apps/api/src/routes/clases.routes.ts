@@ -60,7 +60,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
           select: { id: true, firstName: true, lastName: true },
         },
         tipoActividad: {
-          select: { id: true, nombre: true, color: true, modalidad: true },
+          select: { id: true, nombre: true, color: true },
         },
         _count: { select: { reservations: true } },
       },
@@ -132,7 +132,7 @@ router.post(
             select: { id: true, firstName: true, lastName: true },
           },
           tipoActividad: {
-            select: { id: true, nombre: true, color: true, modalidad: true },
+            select: { id: true, nombre: true, color: true },
           },
         },
       });

@@ -129,8 +129,6 @@ async function main() {
       data: {
         nombre: 'Reformer',
         descripcion: 'Pilates con máquina Reformer. Variantes: Flow, Power, Mobility.',
-        modalidad: 'POR_PAQUETE',
-        costo: 200,
         color: '#254F40',
       },
     }),
@@ -138,8 +136,6 @@ async function main() {
       data: {
         nombre: 'Mat',
         descripcion: 'Pilates en colchoneta. Incluye variante GAP (Glúteos, Abdomen, Piernas).',
-        modalidad: 'POR_PAQUETE',
-        costo: 180,
         color: '#4A7C59',
       },
     }),
@@ -147,8 +143,6 @@ async function main() {
       data: {
         nombre: 'Barre',
         descripcion: 'Clases de Barre — fusión de ballet, pilates y yoga.',
-        modalidad: 'POR_PAQUETE',
-        costo: 200,
         color: '#8B5E83',
       },
     }),

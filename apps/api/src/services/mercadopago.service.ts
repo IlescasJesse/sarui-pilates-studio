@@ -38,7 +38,7 @@ export async function createPreference(params: CreatePreferenceParams) {
         pending: `${env.FRONTEND_URL}/portal/pago/pendiente`,
       },
       auto_return: 'approved',
-      notification_url: `${env.FRONTEND_URL.replace('3000', '4000')}/api/v1/portal/webhook/mercadopago`,
+      notification_url: `${env.API_URL}/api/v1/portal/webhook/mercadopago`,
     },
   });
 

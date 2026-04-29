@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { AlertCircle, CheckCircle, Clock, XCircle, MoreHorizontal } from "lucide-react";
 import { useMembresias, useSuspendMembresia, type MembershipStatus } from "@/hooks/useMembresias";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
 interface MembresiasTableProps {
   statusFilter?: MembershipStatus;
   clientIdFilter?: string;
+  searchTerm?: string;
 }
 
 const statusIcons: Record<MembershipStatus, React.ReactNode> = {
@@ -42,11 +44,20 @@ const STATUS_LABELS: Record<MembershipStatus, string> = {
 export function MembresiasTable({
   statusFilter,
   clientIdFilter,
+  searchTerm,
 }: MembresiasTableProps) {
-  const { data, isLoading, error } = useMembresias({
+  const { data: allData, isLoading, error } = useMembresias({
     status: statusFilter,
     clientId: clientIdFilter,
   });
+
+  const data = searchTerm
+    ? allData?.filter((m) =>
+        `${m.client.firstName} ${m.client.lastName}`
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())
+      )
+    : allData;
 
   const suspendMutation = useSuspendMembresia();
   const [confirmSuspend, setConfirmSuspend] = useState<string | null>(null);
@@ -56,7 +67,7 @@ export function MembresiasTable({
       await suspendMutation.mutateAsync(id);
       setConfirmSuspend(null);
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     }
   };
 

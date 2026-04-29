@@ -1,14 +1,43 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { createHmac } from 'crypto';
 import { prisma } from '../config/database';
 import { getPayment } from '../services/mercadopago.service';
 import { ApiSuccess } from '../utils/response';
+import { env } from '../config/env';
 
 const router = Router();
+
+function validateMpSignature(req: Request): boolean {
+  const secret = env.MP_WEBHOOK_SECRET;
+  if (!secret) return true; // sin secret configurado, saltar en dev
+
+  const xSignature = req.headers['x-signature'] as string | undefined;
+  const xRequestId = req.headers['x-request-id'] as string | undefined;
+  if (!xSignature || !xRequestId) return false;
+
+  const tsMatch = xSignature.match(/ts=([^,]+)/);
+  const v1Match = xSignature.match(/v1=([^,]+)/);
+  if (!tsMatch || !v1Match) return false;
+
+  const ts = tsMatch[1];
+  const v1 = v1Match[1];
+  const dataId = (req.body as { data?: { id?: string } })?.data?.id ?? '';
+
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+  const expected = createHmac('sha256', secret).update(manifest).digest('hex');
+
+  return expected === v1;
+}
 
 // POST /api/v1/portal/webhook/mercadopago
 // MercadoPago notifica aquí cuando se procesa un pago
 router.post('/mercadopago', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if (!validateMpSignature(req)) {
+      res.sendStatus(401);
+      return;
+    }
+
     const { type, data } = req.body as { type: string; data: { id: string } };
 
     // Solo procesamos notificaciones de pago

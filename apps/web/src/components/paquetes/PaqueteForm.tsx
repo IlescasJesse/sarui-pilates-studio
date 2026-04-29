@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -111,7 +112,7 @@ export function PaqueteForm({ isOpen, onClose, paqueteId, onSuccess }: PaqueteFo
       onSuccess?.();
     } catch (err) {
       // el hook lanza el mensaje del servidor
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     }
   };
 

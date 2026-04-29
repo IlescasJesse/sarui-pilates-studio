@@ -9,10 +9,10 @@ async function bootstrap(): Promise<void> {
     await connectMySQL();
     await connectMongoDB();
 
-    const server = app.listen(env.PORT, '0.0.0.0', () => {
-      console.log(`Sarui API running on http://0.0.0.0:${env.PORT}`);
+    const server = app.listen(env.PORT, 'localhost', () => {
+      console.log(`Sarui API running on http://localhost:${env.PORT}`);
       console.log(`Environment: ${env.NODE_ENV}`);
-      console.log(`API base: http://0.0.0.0:${env.PORT}/api/v1`);
+      console.log(`API base: http://localhost:${env.PORT}/api/v1`);
     });
 
     const shutdown = async (signal: string): Promise<void> => {

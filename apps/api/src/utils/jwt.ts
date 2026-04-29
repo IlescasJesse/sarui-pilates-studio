@@ -25,13 +25,10 @@ export function signRefreshToken(payload: TokenPayload): string {
   const options: SignOptions = {
     expiresIn: env.JWT_REFRESH_EXPIRES_IN as SignOptions['expiresIn'],
   };
-  return jwt.sign(payload, env.JWT_SECRET + '_refresh', options);
+  return jwt.sign(payload, env.JWT_REFRESH_SECRET, options);
 }
 
 export function verifyRefreshToken(token: string): DecodedToken {
-  const decoded = jwt.verify(
-    token,
-    env.JWT_SECRET + '_refresh'
-  ) as DecodedToken;
+  const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET) as DecodedToken;
   return decoded;
 }

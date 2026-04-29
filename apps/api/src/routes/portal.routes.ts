@@ -153,11 +153,6 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
       return;
     }
 
-    if (clase.spotsBooked >= clase.capacity) {
-      ApiError(res, 'CLASS_FULL', 'La clase ya no tiene lugares disponibles', 409);
-      return;
-    }
-
     // Verificar que no tenga reservación previa para esta clase
     const existing = await prisma.reservation.findFirst({
       where: {
@@ -177,6 +172,13 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
       // ── Flujo con pago ────────────────────────────────────────────────────
       // 1. Crear reservación con status PENDING_APPROVAL (se confirma al pagar)
       const reservacion = await prisma.$transaction(async (tx) => {
+        // UPDATE atómico: solo incrementa si hay lugar — previene race condition
+        const updated = await tx.$executeRaw`
+          UPDATE \`Class\` SET spotsBooked = spotsBooked + 1
+          WHERE id = ${claseId} AND spotsBooked < capacity AND deletedAt IS NULL
+        `;
+        if (updated === 0) throw Object.assign(new Error('CLASS_FULL'), { code: 'CLASS_FULL' });
+
         const r = await tx.reservation.create({
           data: {
             clientId: client.id,
@@ -185,11 +187,6 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
             status: 'PENDING_APPROVAL',
             portalWaConfirmed: false,
           },
-        });
-
-        await tx.class.update({
-          where: { id: claseId },
-          data: { spotsBooked: { increment: 1 } },
         });
 
         return r;
@@ -227,6 +224,12 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
     } else {
       // ── Flujo sin pago (solicitud) ────────────────────────────────────────
       const reservacion = await prisma.$transaction(async (tx) => {
+        const updated = await tx.$executeRaw`
+          UPDATE \`Class\` SET spotsBooked = spotsBooked + 1
+          WHERE id = ${claseId} AND spotsBooked < capacity AND deletedAt IS NULL
+        `;
+        if (updated === 0) throw Object.assign(new Error('CLASS_FULL'), { code: 'CLASS_FULL' });
+
         const r = await tx.reservation.create({
           data: {
             clientId: client.id,
@@ -242,11 +245,6 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
           },
         });
 
-        await tx.class.update({
-          where: { id: claseId },
-          data: { spotsBooked: { increment: 1 } },
-        });
-
         return r;
       });
 
@@ -257,6 +255,10 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
       }, 201);
     }
   } catch (error) {
+    if ((error as { code?: string }).code === 'CLASS_FULL') {
+      ApiError(res, 'CLASS_FULL', 'La clase ya no tiene lugares disponibles', 409);
+      return;
+    }
     next(error);
   }
 });
@@ -320,12 +322,22 @@ router.post('/verificar-pago', async (req: Request, res: Response, next: NextFun
       return;
     }
 
+    const client = await prisma.client.findUnique({
+      where: { userId: req.user!.id, deletedAt: null },
+    });
+
     const reservacion = await prisma.reservation.findUnique({
       where: { id: reservationId },
     });
 
     if (!reservacion) {
       ApiError(res, 'NOT_FOUND', 'Reservación no encontrada', 404);
+      return;
+    }
+
+    // Validar que la reservación pertenece al cliente autenticado
+    if (!client || reservacion.clientId !== client.id) {
+      ApiError(res, 'FORBIDDEN', 'No tienes acceso a esta reservación', 403);
       return;
     }
 

@@ -50,7 +50,7 @@ const pageEnter = {
 
 const headerVariant = {
   hidden: { opacity: 0, y: -16 },
-  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 340, damping: 28 } },
+  visible: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 340, damping: 28 } },
 };
 
 const cardGridVariant = {
@@ -60,12 +60,12 @@ const cardGridVariant = {
 
 const cardVariant = {
   hidden: { opacity: 0, y: 28, scale: 0.95 },
-  visible: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 320, damping: 26 } },
+  visible: { opacity: 1, y: 0, scale: 1, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
 };
 
 const classeItemVariant = {
   hidden: { opacity: 0, x: -10 },
-  visible: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 28 } },
+  visible: { opacity: 1, x: 0, transition: { type: "spring" as const, stiffness: 300, damping: 28 } },
 };
 
 export default function DashboardPage() {

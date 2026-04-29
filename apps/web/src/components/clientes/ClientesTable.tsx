@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Phone, Trash2, Edit2, MoreHorizontal, QrCode, RefreshCw, Copy, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
+import { Mail, Phone, Trash2, Edit2, MoreHorizontal, QrCode, RefreshCw, Copy, MessageCircle, CreditCard } from "lucide-react";
 import { useClientes, useDeleteCliente } from "@/hooks/useClientes";
+import { MembresiaForm } from "@/components/membresias/MembresiaForm";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -137,13 +139,14 @@ export function ClientesTable({ onEdit, searchTerm, currentPage = 1 }: ClientesT
   const deleteMutation = useDeleteCliente();
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [qrClienteId, setQrClienteId] = useState<string | null>(null);
+  const [membresiaClienteId, setMembresiaClienteId] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
     try {
       await deleteMutation.mutateAsync(id);
       setConfirmDelete(null);
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     }
   };
 
@@ -231,6 +234,10 @@ export function ClientesTable({ onEdit, searchTerm, currentPage = 1 }: ClientesT
                           <Edit2 className="w-4 h-4 mr-2" />
                           Editar
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setMembresiaClienteId(cliente.id)}>
+                          <CreditCard className="w-4 h-4 mr-2" />
+                          Nueva Membresía
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setConfirmDelete(cliente.id)} className="text-destructive">
                           <Trash2 className="w-4 h-4 mr-2" />
                           Eliminar
@@ -271,6 +278,13 @@ export function ClientesTable({ onEdit, searchTerm, currentPage = 1 }: ClientesT
       {qrClienteId && (
         <QrDialog clienteId={qrClienteId} onClose={() => setQrClienteId(null)} />
       )}
+
+      {/* Form nueva membresía */}
+      <MembresiaForm
+        isOpen={!!membresiaClienteId}
+        onClose={() => setMembresiaClienteId(null)}
+        defaultClientId={membresiaClienteId ?? undefined}
+      />
     </>
   );
 }

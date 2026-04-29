@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { get, del } from "@/lib/api-client";
+import { get, post, patch, del } from "@/lib/api-client";
 import { AxiosError } from "axios";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -67,6 +67,31 @@ export function useReservacionById(id?: string) {
 
 // ── Mutation Hooks ───────────────────────────────────────────────────────────
 
+export interface CreateReservacionDto {
+  clientId: string;
+  classId: string;
+  membershipId?: string;
+  origin?: "MEMBERSHIP" | "WALK_IN";
+  notes?: string;
+}
+
+export function useCreateReservacion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateReservacionDto) =>
+      post<{ success: boolean; data: any }>("/reservaciones", data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["reservaciones"] });
+      qc.invalidateQueries({ queryKey: ["clases"] });
+    },
+    onError: (error: AxiosError<any>) => {
+      throw new Error(
+        error.response?.data?.error?.message || "Error al crear reservación"
+      );
+    },
+  });
+}
+
 export function useCancelReservacion() {
   const qc = useQueryClient();
   return useMutation({
@@ -77,8 +102,23 @@ export function useCancelReservacion() {
     },
     onError: (error: AxiosError<any>) => {
       throw new Error(
-        error.response?.data?.error?.message ||
-          "Error cancelling reservation"
+        error.response?.data?.error?.message || "Error al cancelar reservación"
+      );
+    },
+  });
+}
+
+export function useMarcarAsistencia() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: "ATTENDED" | "NO_SHOW" }) =>
+      patch<{ success: boolean; data: any }>(`/reservaciones/${id}`, { status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["reservaciones"] });
+    },
+    onError: (error: AxiosError<any>) => {
+      throw new Error(
+        error.response?.data?.error?.message || "Error al actualizar asistencia"
       );
     },
   });

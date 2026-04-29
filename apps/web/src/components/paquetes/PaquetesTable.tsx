@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { Trash2, Edit2, MoreHorizontal } from "lucide-react";
 import { usePaquetes, useDeletePaquete } from "@/hooks/usePaquetes";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,7 @@ export function PaquetesTable({ onEdit }: PaquetesTableProps) {
       await deleteMutation.mutateAsync(id);
       setConfirmDelete(null);
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
     }
   };
 

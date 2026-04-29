@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { CheckCircle, XCircle, AlertCircle, MoreHorizontal } from "lucide-react";
 import {
   useReservaciones,
   useCancelReservacion,
+  useMarcarAsistencia,
   type ReservationStatus,
 } from "@/hooks/useReservaciones";
 import { Button } from "@/components/ui/button";
@@ -56,6 +58,7 @@ const ORIGIN_LABELS: Record<string, string> = {
 export function ReservacionesTable({ statusFilter, dateFilter }: ReservacionesTableProps) {
   const { data, isLoading, error } = useReservaciones({ status: statusFilter, date: dateFilter });
   const cancelMutation = useCancelReservacion();
+  const asistenciaMutation = useMarcarAsistencia();
   const [confirmCancel, setConfirmCancel] = useState<string | null>(null);
 
   const handleCancel = async (id: string) => {
@@ -63,7 +66,16 @@ export function ReservacionesTable({ statusFilter, dateFilter }: ReservacionesTa
       await cancelMutation.mutateAsync(id);
       setConfirmCancel(null);
     } catch (err) {
-      alert((err as Error).message);
+      toast.error((err as Error).message);
+    }
+  };
+
+  const handleAsistencia = async (id: string, status: "ATTENDED" | "NO_SHOW") => {
+    try {
+      await asistenciaMutation.mutateAsync({ id, status });
+      toast.success(status === "ATTENDED" ? "Asistencia registrada" : "No asistencia registrada");
+    } catch (err) {
+      toast.error((err as Error).message);
     }
   };
 
@@ -130,9 +142,17 @@ export function ReservacionesTable({ statusFilter, dateFilter }: ReservacionesTa
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       {reservacion.status === "CONFIRMED" && (
-                        <DropdownMenuItem onClick={() => setConfirmCancel(reservacion.id)} className="text-destructive">
-                          Cancelar reservación
-                        </DropdownMenuItem>
+                        <>
+                          <DropdownMenuItem onClick={() => handleAsistencia(reservacion.id, "ATTENDED")}>
+                            Marcar asistencia
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleAsistencia(reservacion.id, "NO_SHOW")}>
+                            No asistió
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setConfirmCancel(reservacion.id)} className="text-destructive">
+                            Cancelar reservación
+                          </DropdownMenuItem>
+                        </>
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>

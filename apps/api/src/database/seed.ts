@@ -196,30 +196,21 @@ async function main() {
       role: 'ADMIN',
     },
   });
-    await prisma.user.create({
+
+  console.log('✓ Admin         →  admin@sarui.mx  /  Sarui2026!');
+
+  // ─── RUBI — ADMIN + INSTRUCTORA ──────────────────────────────────────────────
+  const instructoraUser = await prisma.user.create({
     data: {
       email: 'ruubi@sarui.mx',
       password: rubiPassword,
       role: 'ADMIN',
-    },
-  });
-
-  console.log('✓ Admin         →  admin@sarui.mx  /  Sarui2026!');
-  console.log('✓ Rubi          →  ruubi@sarui.mx  /  Rubi2026!');
-
-  // ─── INSTRUCTORA ─────────────────────────────────────────────────────────────
-  const instructoraPassword = await bcrypt.hash('Instruc2026!', 10);
-  const instructoraUser = await prisma.user.create({
-    data: {
-      email: 'sofia@sarui.mx',
-      password: instructoraPassword,
-      role: 'INSTRUCTOR',
       instructor: {
         create: {
-          firstName: 'Sofía',
-          lastName: 'Ramírez',
-          phone: '951 100 0001',
-          bio: 'Instructora certificada en Pilates Reformer y Mat con 5 años de experiencia.',
+          firstName: 'Rubi',
+          lastName: 'Santos',
+          phone: '9511926759',
+          bio: 'Fundadora y propietaria de Sarui Pilates Studio. Instructora certificada en Pilates Reformer, Mat y Barre.',
           specialties: JSON.stringify(['REFORMER', 'MAT', 'BARRE']),
         },
       },
@@ -227,28 +218,52 @@ async function main() {
     include: { instructor: true },
   });
 
-  console.log('✓ Instructora   →  sofia@sarui.mx  /  Instruc2026!');
+  console.log('✓ Rubi          →  ruubi@sarui.mx  /  Rubi2026!  (Admin + Instructora)');
 
-  // ─── CLIENTE DE PRUEBA ────────────────────────────────────────────────────────
-  const clientePassword = await bcrypt.hash('Cliente2026!', 10);
-  await prisma.user.create({
-    data: {
-      email: 'cliente@sarui.mx',
-      password: clientePassword,
-      role: 'CLIENT',
-      client: {
-        create: {
-          firstName: 'María',
-          lastName: 'González',
-          phone: '951 200 0001',
-          qrCode: uuidv4(),
-          pin: await bcrypt.hash('1234', 10),
+  // ─── CLIENTES NUEVOS ──────────────────────────────────────────────────────────
+  const clientPassword = await bcrypt.hash('Cliente2026!', 10);
+  const clientsBatch = [
+    { firstName: 'Ameli', lastName: 'Carbajal', phone: '9541597074' },
+    { firstName: 'Lily', lastName: 'Matus', phone: '9511195343' },
+    { firstName: 'Alina', lastName: 'Nieto', phone: '9511870677' },
+    { firstName: 'Ingrid', lastName: 'Arreoutúa', phone: '9511125523' },
+    { firstName: 'Melisa', lastName: 'Lira', phone: '9512886105' },
+    { firstName: 'Dainzú', lastName: 'Vasquez', phone: '9512225169' },
+    { firstName: 'Wendy', lastName: 'Alvarado', phone: '9514690694' },
+    { firstName: 'Monserrat', lastName: 'Canul', phone: '2741405612' },
+    { firstName: 'Adriana', lastName: 'Garibo', phone: '9514676099' },
+    { firstName: 'Leticia', lastName: 'García', phone: '9512844756' },
+    { firstName: 'Judith', lastName: 'Sánchez', phone: '9511000033' },
+    { firstName: 'Miriam', lastName: 'Toledo', phone: '9511098608' },
+    { firstName: 'Jamilette', lastName: 'Zárate', phone: '9516579586' },
+  ];
+
+  for (const clientData of clientsBatch) {
+    const email = `${clientData.firstName.toLowerCase()}.${clientData.lastName.toLowerCase()}@sarui.mx`;
+    await prisma.user.create({
+      data: {
+        email,
+        password: clientPassword,
+        role: 'CLIENT',
+        client: {
+          create: {
+            firstName: clientData.firstName,
+            lastName: clientData.lastName,
+            phone: clientData.phone,
+            qrCode: uuidv4(),
+            pin: await bcrypt.hash('1234', 10),
+            birthDate: new Date('2004-04-30'), // Todos con 22 años
+          },
         },
       },
-    },
-  });
+    });
+  }
 
-  console.log('✓ Cliente       →  cliente@sarui.mx  /  Cliente2026!  (PIN: 1234)\n');
+  console.log(`✓ ${clientsBatch.length} clientes nuevos creados`);
+  clientsBatch.forEach((c) => {
+    console.log(`   ${c.firstName} ${c.lastName} → ${c.firstName.toLowerCase()}.${c.lastName.toLowerCase()}@sarui.mx`);
+  });
+  console.log('');
 
   // ─── CLASES — Semana 27 Abr – 2 May 2026 ─────────────────────────────────────
   const instructorId = instructoraUser.instructor!.id;

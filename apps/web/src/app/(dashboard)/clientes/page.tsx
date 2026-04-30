@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Users, Plus, Globe } from "lucide-react";
+import { Users, Plus, Globe, ClipboardList } from "lucide-react";
 import { ClientesTable } from "@/components/clientes/ClientesTable";
 import { ClienteForm } from "@/components/clientes/ClienteForm";
 import { AgendasPortalTable } from "@/components/clientes/AgendasPortalTable";
+import { SolicitudesTable } from "@/components/clientes/SolicitudesTable";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
-type Tab = "clientes" | "portal";
+type Tab = "clientes" | "portal" | "solicitudes";
 
 export default function ClientesPage() {
   const [tab, setTab] = useState<Tab>("clientes");
@@ -79,6 +80,17 @@ export default function ClientesPage() {
           <Globe className="w-4 h-4" />
           Agendas del Portal
         </button>
+        <button
+          onClick={() => setTab("solicitudes")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            tab === "solicitudes"
+              ? "bg-[#254F40] text-[#F6FFB5] shadow-sm"
+              : "text-[#254F40]/60 hover:text-[#254F40]"
+          }`}
+        >
+          <ClipboardList className="w-4 h-4" />
+          Solicitudes
+        </button>
       </div>
 
       {/* Contenido con animación */}
@@ -107,7 +119,7 @@ export default function ClientesPage() {
               currentPage={currentPage}
             />
           </motion.div>
-        ) : (
+        ) : tab === "portal" ? (
           <motion.div
             key="portal"
             initial={{ opacity: 0, y: 6 }}
@@ -116,6 +128,16 @@ export default function ClientesPage() {
             transition={{ duration: 0.18 }}
           >
             <AgendasPortalTable />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="solicitudes"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.18 }}
+          >
+            <SolicitudesTable />
           </motion.div>
         )}
       </AnimatePresence>

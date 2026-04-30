@@ -148,6 +148,41 @@ router.post('/solicitar-cuenta', async (req: Request, res: Response, next: NextF
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/v1/portal/solicitudes  — solo ADMIN
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/solicitudes', authMiddleware, requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { status } = req.query as { status?: string };
+    const solicitudes = await prisma.solicitudCuenta.findMany({
+      where: status ? { status } : undefined,
+      orderBy: { createdAt: 'desc' },
+    });
+    ApiSuccess(res, solicitudes);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PATCH /api/v1/portal/solicitudes/:id  — solo ADMIN (aprobar/rechazar)
+router.patch('/solicitudes/:id', authMiddleware, requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body as { status: string };
+    if (!['APROBADA', 'RECHAZADA'].includes(status)) {
+      ApiError(res, 'INVALID_STATUS', 'Status debe ser APROBADA o RECHAZADA', 400);
+      return;
+    }
+    const solicitud = await prisma.solicitudCuenta.update({
+      where: { id },
+      data: { status },
+    });
+    ApiSuccess(res, solicitud);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // A partir de aquí requiere auth de CLIENT
 // ─────────────────────────────────────────────────────────────────────────────
 router.use(authMiddleware);

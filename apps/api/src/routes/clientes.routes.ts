@@ -19,7 +19,7 @@ const clienteSchema = z.object({
   email: z.string().email('Invalid email'),
   password: z.string().min(6, 'Password must be at least 6 characters').optional(),
   phone: z.string().optional(),
-  birthDate: z.string().datetime().optional(),
+  birthDate: z.string().optional(),
   notes: z.string().optional(),
   pin: z
     .string()

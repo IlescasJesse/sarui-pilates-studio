@@ -17,7 +17,8 @@ import { Input } from "@/components/ui/input";
 import { formatDateTime } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
 import { NuevaClaseDialog } from "./NuevaClaseDialog";
-import { Users, Clock, UserCheck, Search, CheckCircle, UserPlus, X } from "lucide-react";
+import { Users, Clock, UserCheck, Search, CheckCircle, UserPlus, X, Pencil } from "lucide-react";
+import { useInstructores } from "@/hooks/useInstructores";
 import type {
   EventClickArg,
   EventInput,
@@ -165,6 +166,11 @@ export function CalendarioClases() {
   const [selectedMembresiaId, setSelectedMembresiaId] = useState("");
   const [reservaOk, setReservaOk] = useState(false);
 
+  // ── Cambio de instructor
+  const [editandoInstructor, setEditandoInstructor] = useState(false);
+  const [nuevoInstructorId, setNuevoInstructorId] = useState("");
+  const { data: instructores = [] } = useInstructores();
+
   // ── Inline new client form
   const [showNewClientForm, setShowNewClientForm] = useState(false);
   const [newClient, setNewClient] = useState({ firstName: "", lastName: "", email: "", phone: "" });
@@ -183,6 +189,8 @@ export function CalendarioClases() {
     setReservaOk(false);
     setShowNewClientForm(false);
     setNewClient({ firstName: "", lastName: "", email: "", phone: "" });
+    setEditandoInstructor(false);
+    setNuevoInstructorId("");
   }, [selectedClaseId]);
 
   // ── Queries
@@ -255,6 +263,18 @@ export function CalendarioClases() {
       setSelectedCliente(null);
       setSearchTerm("");
       setSelectedMembresiaId("");
+    },
+  });
+
+  const cambiarInstructorMutation = useMutation({
+    mutationFn: async ({ claseId, instructorId }: { claseId: string; instructorId: string }) => {
+      await apiClient.patch(`/clases/${claseId}`, { instructorId });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clase-detalle", selectedClaseId] });
+      qc.invalidateQueries({ queryKey: ["clases"] });
+      setEditandoInstructor(false);
+      setNuevoInstructorId("");
     },
   });
 
@@ -371,12 +391,40 @@ export function CalendarioClases() {
                       {formatDateTime(claseDetalle.startAt)} –{" "}
                       {new Date(claseDetalle.endAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}
                     </span>
-                    {claseDetalle.instructor && (
-                      <span className="flex items-center gap-1.5">
-                        <UserCheck className="w-3.5 h-3.5" />
-                        {claseDetalle.instructor.firstName} {claseDetalle.instructor.lastName}
-                      </span>
-                    )}
+                    <span className="flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5" />
+                      {editandoInstructor ? (
+                        <span className="flex items-center gap-1.5">
+                          <select
+                            className="text-sm border border-input rounded-md px-2 py-0.5 bg-background"
+                            value={nuevoInstructorId || claseDetalle.instructor?.id || ""}
+                            onChange={(e) => setNuevoInstructorId(e.target.value)}
+                          >
+                            {instructores.map((i) => (
+                              <option key={i.id} value={i.id}>
+                                {i.firstName} {i.lastName}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            className="text-xs px-2 py-0.5 bg-[#254F40] text-white rounded-md"
+                            onClick={() => cambiarInstructorMutation.mutate({ claseId: claseDetalle.id, instructorId: nuevoInstructorId || claseDetalle.instructor?.id || "" })}
+                          >
+                            Guardar
+                          </button>
+                          <button onClick={() => setEditandoInstructor(false)} className="text-muted-foreground hover:text-foreground">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1.5">
+                          {claseDetalle.instructor ? `${claseDetalle.instructor.firstName} ${claseDetalle.instructor.lastName}` : "Sin instructor"}
+                          <button onClick={() => { setEditandoInstructor(true); setNuevoInstructorId(claseDetalle.instructor?.id || ""); }} className="text-muted-foreground hover:text-[#254F40] transition-colors">
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        </span>
+                      )}
+                    </span>
                   </DialogDescription>
                 </DialogHeader>
 

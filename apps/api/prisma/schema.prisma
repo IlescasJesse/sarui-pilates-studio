@@ -66,6 +66,12 @@ enum AttendanceStatus {
   NO_SHOW
 }
 
+enum SolicitudCuentaStatus {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
+
 enum MembershipStatus {
   ACTIVE
   EXPIRED
@@ -456,4 +462,25 @@ model Payment {
   @@index([status])
   @@index([paidAt])
   @@map("payments")
+}
+
+// ============================================================
+// SOLICITUDES DE CUENTA (PORTAL)
+// ============================================================
+
+model SolicitudCuenta {
+  id        String                @id @default(cuid())
+  nombre    String
+  apellido  String
+  email     String
+  telefono  String
+  mensaje   String?               @db.Text
+  status    SolicitudCuentaStatus @default(PENDIENTE)
+
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("solicitudes_cuenta")
 }

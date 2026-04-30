@@ -111,6 +111,43 @@ router.get('/clases/:id', async (req: Request, res: Response, next: NextFunction
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /api/v1/portal/solicitar-cuenta  — público, sin auth
+// ─────────────────────────────────────────────────────────────────────────────
+const solicitudSchema = z.object({
+  nombre:   z.string().min(1).max(80),
+  apellido: z.string().min(1).max(80),
+  email:    z.string().email(),
+  telefono: z.string().min(7).max(20),
+  mensaje:  z.string().max(500).optional(),
+});
+
+router.post('/solicitar-cuenta', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parse = solicitudSchema.safeParse(req.body);
+    if (!parse.success) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'Datos inválidos', details: parse.error.errors },
+      });
+      return;
+    }
+
+    const existe = await prisma.solicitudCuenta.findFirst({
+      where: { email: parse.data.email, status: 'PENDIENTE' },
+    });
+    if (existe) {
+      ApiError(res, 'ALREADY_REQUESTED', 'Ya tienes una solicitud pendiente con ese correo', 409);
+      return;
+    }
+
+    const solicitud = await prisma.solicitudCuenta.create({ data: parse.data });
+    ApiSuccess(res, solicitud, 201);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // A partir de aquí requiere auth de CLIENT
 // ─────────────────────────────────────────────────────────────────────────────
 router.use(authMiddleware);

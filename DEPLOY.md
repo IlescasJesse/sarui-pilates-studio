@@ -130,5 +130,37 @@ pm2 reload all             # hot-reload sin downtime
 - [ ] `apps/web/.env.local` con NEXT_PUBLIC_API_URL apuntando a api.TU_DOMINIO.COM
 - [ ] SSL activo (https verde en el browser)
 - [ ] `pm2 list` muestra `online` para sarui-api y sarui-web
-- [ ] Webhook MercadoPago actualizado a `https://api.TU_DOMINIO.COM/api/v1/webhook/mp`
-- [ ] MP_WEBHOOK_SECRET con valor real y configurado en el panel de MP
+- [ ] Webhook MercadoPago actualizado a `https://api.TU_DOMINIO.COM/api/v1/portal/webhook/mercadopago`
+- [ ] MP_WEBHOOK_SECRET con valor real obtenido del panel de MP (ver sección 9)
+
+---
+
+## 9. MercadoPago — Configurar webhook
+
+### 9.1 Registrar la URL en el panel de MP
+
+1. Panel MP → **Tu negocio → Configuración → Notificaciones → Webhooks**
+2. Crear notificación:
+   - **URL**: `https://api.TU_DOMINIO.COM/api/v1/portal/webhook/mercadopago`
+   - **Eventos**: `payment`
+3. Al guardar, MP muestra una **"Clave secreta"** — cópiala.
+
+### 9.2 Pegar el secret en el servidor
+
+```bash
+nano /var/www/sarui-studio/apps/api/.env
+# Buscar MP_WEBHOOK_SECRET y reemplazar con la clave del paso anterior:
+MP_WEBHOOK_SECRET=<clave_secreta_del_panel_mp>
+```
+
+> ⚠️ Usa la clave que genera MP, no una inventada. MP firma las notificaciones con esa clave y el API la verifica con HMAC-SHA256.
+
+### 9.3 Reiniciar y verificar
+
+```bash
+pm2 restart sarui-api
+```
+
+En el panel de MP → **Simular notificación**:
+- Respuesta `200` → firma válida, todo OK.
+- Respuesta `401` → secret mal copiado, revisar.

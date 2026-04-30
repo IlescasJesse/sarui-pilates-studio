@@ -7,9 +7,16 @@ import { env } from '../config/env';
 
 const router = Router();
 
+let _warnedNoSecret = false;
 function validateMpSignature(req: Request): boolean {
   const secret = env.MP_WEBHOOK_SECRET;
-  if (!secret) return true; // sin secret configurado, saltar en dev
+  if (!secret) {
+    if (!_warnedNoSecret) {
+      console.warn('[webhook] MP_WEBHOOK_SECRET no configurado — validación de firma DESACTIVADA (solo dev)');
+      _warnedNoSecret = true;
+    }
+    return true;
+  }
 
   const xSignature = req.headers['x-signature'] as string | undefined;
   const xRequestId = req.headers['x-request-id'] as string | undefined;

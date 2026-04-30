@@ -59,3 +59,9 @@ coverage/
 # ===== MISC =====
 *.pem
 .cache/
+
+# ===== CLAUDE CODE =====
+.claude/settings.local.json
+.claude/agent-memory/
+skills-lock.json
+

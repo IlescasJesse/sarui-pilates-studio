@@ -130,7 +130,7 @@ export default function AgendarPage() {
   const monto = Number(clase.costo ?? 0);
 
   return (
-    <div className="max-w-lg mx-auto">
+    <div className="max-w-2xl mx-auto">
       {/* Back */}
       <button
         onClick={() => router.push("/portal/clases")}

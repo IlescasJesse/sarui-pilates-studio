@@ -10,7 +10,10 @@
       "Bash(npm list *)",
       "Bash(npx tsc *)",
       "Bash(npm run *)",
-      "Bash(gh pr *)"
+      "Bash(gh pr *)",
+      "Bash(xargs ls *)",
+      "Bash(npx ts-node -e ' *)",
+      "mcp__plugin_claude-mem_mcp-search__search"
     ]
   }
 }

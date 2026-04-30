@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle, Loader2 } from "lucide-react";
 import { portalAuthClient } from "@/lib/portal-client";
 
-export default function PagoExitosoPage() {
+function PagoExitosoContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [confirming, setConfirming] = useState(true);
@@ -54,5 +54,13 @@ export default function PagoExitosoPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PagoExitosoPage() {
+  return (
+    <Suspense fallback={null}>
+      <PagoExitosoContent />
+    </Suspense>
   );
 }

@@ -24,7 +24,9 @@ export const metadata: Metadata = {
   },
   description: "Pilates Reformer y Mat en Xoxocotlán, Oaxaca. Mueve tu cuerpo. Transforma tu mente.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/sarui.ico",
+    shortcut: "/sarui.ico",
+    apple: "/sarui.ico",
   },
 };
 

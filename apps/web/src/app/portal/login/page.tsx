@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -199,14 +199,15 @@ function SolicitudForm() {
 
 // ── Página ────────────────────────────────────────────────────────────────────
 
-export default function PortalLoginPage() {
+function PortalLoginContent() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") ?? "/portal/clases";
   const [tab, setTab] = useState<"login" | "solicitud">("login");
 
   return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="w-full max-w-sm">
+    <Suspense fallback={null}>
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="w-full max-w-sm">
         {/* Header */}
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-[#254F40]">
@@ -244,5 +245,14 @@ export default function PortalLoginPage() {
         )}
       </div>
     </div>
+  </Suspense>
+  );
+}
+
+export default function PortalLoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <PortalLoginContent />
+    </Suspense>
   );
 }

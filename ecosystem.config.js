@@ -11,7 +11,7 @@ module.exports = {
       script: 'dist/server.js',
       env_production: {
         NODE_ENV: 'production',
-        PORT: 4000,
+        PORT: 5001,
       },
       instances: 1,
       autorestart: true,
@@ -24,10 +24,10 @@ module.exports = {
       name: 'sarui-web',
       cwd: './apps/web',
       script: 'node_modules/.bin/next',
-      args: 'start -p 3000',
+      args: 'start -p 3001',
       env_production: {
         NODE_ENV: 'production',
-        PORT: 3000,
+        PORT: 3001,
       },
       instances: 1,
       autorestart: true,

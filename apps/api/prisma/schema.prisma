@@ -228,6 +228,7 @@ model TipoActividad {
   nombre      String
   descripcion String?
   color       String?
+  costo       Decimal   @default(0) @db.Decimal(10, 2)
   isActive    Boolean   @default(true)
 
   createdAt   DateTime  @default(now())

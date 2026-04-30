@@ -130,6 +130,7 @@ async function main() {
         nombre: 'Reformer',
         descripcion: 'Pilates con máquina Reformer. Variantes: Flow, Power, Mobility.',
         color: '#254F40',
+        costo: 200,
       },
     }),
     prisma.tipoActividad.create({
@@ -137,6 +138,7 @@ async function main() {
         nombre: 'Mat',
         descripcion: 'Pilates en colchoneta. Incluye variante GAP (Glúteos, Abdomen, Piernas).',
         color: '#4A7C59',
+        costo: 180,
       },
     }),
     prisma.tipoActividad.create({
@@ -144,6 +146,7 @@ async function main() {
         nombre: 'Barre',
         descripcion: 'Clases de Barre — fusión de ballet, pilates y yoga.',
         color: '#8B5E83',
+        costo: 200,
       },
     }),
   ]);

@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -205,9 +207,8 @@ function PortalLoginContent() {
   const [tab, setTab] = useState<"login" | "solicitud">("login");
 
   return (
-    <Suspense fallback={null}>
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="w-full max-w-sm">
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="w-full max-w-sm">
         {/* Header */}
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-[#254F40]">
@@ -245,7 +246,6 @@ function PortalLoginContent() {
         )}
       </div>
     </div>
-  </Suspense>
   );
 }
 

@@ -188,6 +188,7 @@ async function main() {
 
   // ─── ADMIN ────────────────────────────────────────────────────────────────────
   const adminPassword = await bcrypt.hash('Sarui2026!', 10);
+  const rubiPassword = await bcrypt.hash('Rubi2026!', 10);
   await prisma.user.create({
     data: {
       email: 'admin@sarui.mx',
@@ -195,8 +196,16 @@ async function main() {
       role: 'ADMIN',
     },
   });
+    await prisma.user.create({
+    data: {
+      email: 'ruubi@sarui.mx',
+      password: rubiPassword,
+      role: 'ADMIN',
+    },
+  });
 
   console.log('✓ Admin         →  admin@sarui.mx  /  Sarui2026!');
+  console.log('✓ Rubi          →  ruubi@sarui.mx  /  Rubi2026!');
 
   // ─── INSTRUCTORA ─────────────────────────────────────────────────────────────
   const instructoraPassword = await bcrypt.hash('Instruc2026!', 10);

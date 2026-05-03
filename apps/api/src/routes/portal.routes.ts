@@ -7,6 +7,7 @@ import { authMiddleware } from '../middlewares/auth.middleware';
 import { requireRole } from '../middlewares/role.middleware';
 import { createPreference, getPayment } from '../services/mercadopago.service';
 import { hashPassword } from '../utils/bcrypt';
+import QRCode from 'qrcode';
 import { z } from 'zod';
 
 const router = Router();
@@ -443,6 +444,32 @@ router.post('/reservar-provisional', async (req: Request, res: Response, next: N
 // ─────────────────────────────────────────────────────────────────────────────
 router.use(authMiddleware);
 router.use(requireRole('CLIENT', 'ADMIN'));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/v1/portal/mi-qr  — cliente autenticado, devuelve su QR como imagen
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/mi-qr', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const client = await prisma.client.findUnique({
+      where: { userId: req.user!.id },
+      select: { id: true, firstName: true, lastName: true, phone: true, qrCode: true },
+    });
+    if (!client) {
+      ApiError(res, 'CLIENT_NOT_FOUND', 'Perfil de cliente no encontrado', 404);
+      return;
+    }
+    const qrImage = await QRCode.toDataURL(client.qrCode, { width: 300, margin: 2 });
+    ApiSuccess(res, {
+      clientId: client.id,
+      name: `${client.firstName} ${client.lastName}`,
+      phone: client.phone,
+      qrCode: client.qrCode,
+      qrImage,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 const reservaSchema = z.object({
   claseId: z.string().min(1),

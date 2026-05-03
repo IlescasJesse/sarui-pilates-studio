@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useClasePortal, useCrearReservaPortal } from "@/hooks/usePortal";
+import { portalAuthClient } from "@/lib/portal-client";
+import { downloadQRCard } from "@/lib/qr-card";
 import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
 import {
   Calendar,
@@ -16,6 +18,7 @@ import {
   CheckCircle,
   AlertCircle,
   ChevronRight,
+  Download,
 } from "lucide-react";
 
 const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY ?? "";
@@ -100,6 +103,13 @@ export default function AgendarPage() {
         portalWaConfirmed: waConfirmed,
       });
       setModo("exito_solicitud");
+      // Descarga automática de tarjeta QR al confirmar reservación
+      try {
+        const res = await portalAuthClient.get<{ success: boolean; data: { qrImage: string; name: string } }>("/portal/mi-qr");
+        await downloadQRCard(res.data.data.qrImage, res.data.data.name);
+      } catch {
+        // No bloqueamos el flujo si falla la descarga del QR
+      }
     } catch (err) {
       handleErrorApi(err);
       setModo("elegir");
@@ -390,9 +400,26 @@ export default function AgendarPage() {
             <CheckCircle className="w-7 h-7 text-[#254F40]" />
           </div>
           <h2 className="font-bold text-[#254F40] text-lg mb-2">¡Solicitud enviada!</h2>
-          <p className="text-sm text-[#254F40]/60 mb-6">
+          <p className="text-sm text-[#254F40]/60 mb-2">
             El equipo de Sarui Studio revisará tu solicitud y te confirmará por WhatsApp.
           </p>
+          <p className="text-xs text-[#254F40]/40 mb-6">
+            Tu tarjeta QR de acceso se descargó automáticamente.
+          </p>
+          <div className="flex flex-col gap-2 mb-4">
+            <button
+              onClick={async () => {
+                try {
+                  const res = await portalAuthClient.get<{ success: boolean; data: { qrImage: string; name: string } }>("/portal/mi-qr");
+                  await downloadQRCard(res.data.data.qrImage, res.data.data.name);
+                } catch { /* ignore */ }
+              }}
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-[#254F40]/30 text-sm text-[#254F40] hover:bg-[#254F40]/5 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Descargar mi tarjeta QR
+            </button>
+          </div>
           <div className="flex gap-3 justify-center">
             <button
               onClick={() => router.push("/portal/mis-agendas")}

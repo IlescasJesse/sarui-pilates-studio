@@ -7,6 +7,7 @@ import { useClientes, useDeleteCliente } from "@/hooks/useClientes";
 import { MembresiaForm } from "@/components/membresias/MembresiaForm";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
+import { buildBrandedCanvas, downloadQRCard } from "@/lib/qr-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -29,64 +30,6 @@ interface QrData {
   phone?: string | null;
   qrCode: string;
   qrImage: string;
-}
-
-// ─── Genera canvas con branding Sarui ────────────────────────────────────────
-async function buildBrandedCanvas(qrImage: string, name: string): Promise<HTMLCanvasElement> {
-  const W = 600, H = 720;
-  const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext("2d")!;
-
-  // Fondo blanco
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, W, H);
-
-  // Barra superior verde
-  ctx.fillStyle = "#254F40";
-  ctx.fillRect(0, 0, W, 110);
-
-  // Nombre del estudio
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 26px 'Arial', sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("SARUI PILATES STUDIO", W / 2, 52);
-  ctx.font = "15px 'Arial', sans-serif";
-  ctx.fillStyle = "#a7c4b5";
-  ctx.fillText("Acceso con código QR", W / 2, 82);
-
-  // Imagen QR
-  const img = new Image();
-  img.src = qrImage;
-  await new Promise<void>((res) => { img.onload = () => res(); });
-  const qrSize = 370;
-  const qrX = (W - qrSize) / 2;
-  ctx.drawImage(img, qrX, 140, qrSize, qrSize);
-
-  // Nombre del cliente
-  ctx.fillStyle = "#254F40";
-  ctx.font = "bold 22px 'Arial', sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(name, W / 2, 560);
-
-  // Separador
-  ctx.fillStyle = "#e5e7eb";
-  ctx.fillRect(60, 582, W - 120, 1);
-
-  // Instrucción
-  ctx.fillStyle = "#6b7280";
-  ctx.font = "13px 'Arial', sans-serif";
-  ctx.fillText("Presenta este código en el kiosk de acceso", W / 2, 610);
-  ctx.fillStyle = "#9ca3af";
-  ctx.font = "12px 'Arial', sans-serif";
-  ctx.fillText("sarui.com.mx", W / 2, 632);
-
-  // Barra inferior
-  ctx.fillStyle = "#254F40";
-  ctx.fillRect(0, H - 18, W, 18);
-
-  return canvas;
 }
 
 // ─── Diálogo QR ───────────────────────────────────────────────────────────────
@@ -114,11 +57,7 @@ function QrDialog({ clienteId, onClose }: { clienteId: string; onClose: () => vo
 
   const descargar = async () => {
     if (!data) return;
-    const canvas = await buildBrandedCanvas(data.qrImage, data.name);
-    const link = document.createElement("a");
-    link.download = `qr-sarui-${data.name.replace(/\s+/g, "-").toLowerCase()}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+    await downloadQRCard(data.qrImage, data.name);
   };
 
   const compartirWhatsapp = async () => {

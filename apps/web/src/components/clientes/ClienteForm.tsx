@@ -16,6 +16,89 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 
+const MESES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+
+function BirthDatePicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [day, setDay] = useState("");
+  const [month, setMonth] = useState("");
+  const [year, setYear] = useState("");
+
+  useEffect(() => {
+    if (value) {
+      const [y, m, d] = value.split("-");
+      setYear(y ?? "");
+      setMonth(m ? String(parseInt(m)) : "");
+      setDay(d ? String(parseInt(d)) : "");
+    } else {
+      setDay(""); setMonth(""); setYear("");
+    }
+  }, [value]);
+
+  function emit(d: string, m: string, y: string) {
+    if (d && m && y) {
+      const mm = m.padStart(2, "0");
+      const dd = d.padStart(2, "0");
+      onChange(`${y}-${mm}-${dd}`);
+    } else {
+      onChange("");
+    }
+  }
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
+  const daysInMonth = month && year
+    ? new Date(parseInt(year), parseInt(month), 0).getDate()
+    : 31;
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+  const selectClass =
+    "flex-1 h-9 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring text-foreground";
+
+  return (
+    <div className="flex gap-2">
+      <select
+        value={day}
+        onChange={(e) => { setDay(e.target.value); emit(e.target.value, month, year); }}
+        className={selectClass}
+      >
+        <option value="">Día</option>
+        {days.map((d) => (
+          <option key={d} value={String(d)}>{d}</option>
+        ))}
+      </select>
+      <select
+        value={month}
+        onChange={(e) => { setMonth(e.target.value); emit(day, e.target.value, year); }}
+        className={selectClass}
+      >
+        <option value="">Mes</option>
+        {MESES.map((m, i) => (
+          <option key={i + 1} value={String(i + 1)}>{m}</option>
+        ))}
+      </select>
+      <select
+        value={year}
+        onChange={(e) => { setYear(e.target.value); emit(day, month, e.target.value); }}
+        className={selectClass}
+      >
+        <option value="">Año</option>
+        {years.map((y) => (
+          <option key={y} value={String(y)}>{y}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 const clienteSchema = z.object({
   firstName: z.string().min(1, "El nombre es requerido"),
   lastName: z.string().min(1, "El apellido es requerido"),
@@ -42,11 +125,14 @@ export function ClienteForm({ isOpen, onClose, clienteId, onSuccess }: ClienteFo
   const createMutation = useCreateCliente();
   const updateMutation = useUpdateCliente(clienteId || "");
 
+  const [birthDateValue, setBirthDateValue] = useState("");
+
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
   } = useForm<ClienteFormData>({
     resolver: zodResolver(clienteSchema),
     defaultValues: { firstName: "", lastName: "", email: "", phone: "", birthDate: "", notes: "" },
@@ -54,15 +140,18 @@ export function ClienteForm({ isOpen, onClose, clienteId, onSuccess }: ClienteFo
 
   useEffect(() => {
     if (isEditMode && existingCliente) {
+      const bd = existingCliente.birthDate ? existingCliente.birthDate.split("T")[0] : "";
       reset({
         firstName: existingCliente.firstName,
         lastName: existingCliente.lastName,
         phone: existingCliente.phone || "",
-        birthDate: existingCliente.birthDate ? existingCliente.birthDate.split("T")[0] : "",
+        birthDate: bd,
         notes: "",
       });
+      setBirthDateValue(bd);
     } else {
       reset();
+      setBirthDateValue("");
     }
   }, [isEditMode, existingCliente, reset]);
 
@@ -135,7 +224,13 @@ export function ClienteForm({ isOpen, onClose, clienteId, onSuccess }: ClienteFo
 
           <div>
             <label className="text-sm font-medium block mb-1">Fecha de nacimiento</label>
-            <Input type="date" {...register("birthDate")} aria-invalid={!!errors.birthDate} />
+            <BirthDatePicker
+              value={birthDateValue}
+              onChange={(v) => {
+                setBirthDateValue(v);
+                setValue("birthDate", v);
+              }}
+            />
             {errors.birthDate && <p className="text-xs text-destructive mt-1">{errors.birthDate.message}</p>}
           </div>
 

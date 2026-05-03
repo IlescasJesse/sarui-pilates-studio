@@ -92,6 +92,15 @@ router.post(
         return;
       }
 
+      // Puede existir una reservación cancelada — la restauramos en vez de crear nueva
+      const cancelada = await prisma.reservation.findFirst({
+        where: {
+          clientId: parseResult.data.clientId,
+          classId: parseResult.data.classId,
+          status: 'CANCELLED',
+        },
+      });
+
       const reservacion = await prisma.$transaction(async (tx) => {
         // Incremento atómico: solo actualiza si hay lugares disponibles
         const slotsUpdated = await tx.$executeRaw`
@@ -102,21 +111,37 @@ router.post(
           throw Object.assign(new Error('CLASS_FULL'), { code: 'CLASS_FULL' });
         }
 
-        const created = await tx.reservation.create({
-          data: {
-            clientId: parseResult.data.clientId,
-            classId: parseResult.data.classId,
-            membershipId: parseResult.data.membershipId,
-            origin: parseResult.data.origin as ReservationOrigin,
-            status: 'CONFIRMED',
-            notes: parseResult.data.notes,
-          },
-          include: {
-            client: { select: { id: true, firstName: true, lastName: true } },
-            class: { select: { id: true, title: true, startAt: true, type: true, subtype: true } },
-            membership: { include: { package: { select: { name: true } } } },
-          },
-        });
+        const include = {
+          client: { select: { id: true, firstName: true, lastName: true } },
+          class: { select: { id: true, title: true, startAt: true, type: true, subtype: true } },
+          membership: { include: { package: { select: { name: true } } } },
+        };
+
+        const result = cancelada
+          ? await tx.reservation.update({
+              where: { id: cancelada.id },
+              data: {
+                membershipId: parseResult.data.membershipId ?? null,
+                origin: parseResult.data.origin as ReservationOrigin,
+                status: 'CONFIRMED',
+                notes: parseResult.data.notes ?? null,
+                cancelledAt: null,
+                portalDeclineReason: null,
+                deletedAt: null,
+              },
+              include,
+            })
+          : await tx.reservation.create({
+              data: {
+                clientId: parseResult.data.clientId,
+                classId: parseResult.data.classId,
+                membershipId: parseResult.data.membershipId,
+                origin: parseResult.data.origin as ReservationOrigin,
+                status: 'CONFIRMED',
+                notes: parseResult.data.notes,
+              },
+              include,
+            });
 
         if (parseResult.data.membershipId) {
           const membership = await tx.membership.findUnique({
@@ -134,7 +159,7 @@ router.post(
           }
         }
 
-        return created;
+        return result;
       });
 
       ApiSuccess(res, reservacion, 201);

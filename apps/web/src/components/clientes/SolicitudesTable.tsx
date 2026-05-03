@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, X, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { apiClient } from "@/lib/api-client";
 
 interface Solicitud {
   id: string;
@@ -16,8 +15,6 @@ interface Solicitud {
   createdAt: string;
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL;
-
 export function SolicitudesTable() {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,10 +23,9 @@ export function SolicitudesTable() {
   const fetchSolicitudes = async () => {
     setLoading(true);
     try {
-      const url = filtro ? `${API}/portal/solicitudes?status=${filtro}` : `${API}/portal/solicitudes`;
-      const res = await fetch(url, { credentials: "include" });
-      const json = await res.json();
-      setSolicitudes(json.data ?? []);
+      const params = filtro ? { status: filtro } : {};
+      const res = await apiClient.get<{ data: Solicitud[] }>("/portal/solicitudes", { params });
+      setSolicitudes(res.data.data ?? []);
     } finally {
       setLoading(false);
     }
@@ -38,12 +34,7 @@ export function SolicitudesTable() {
   useEffect(() => { fetchSolicitudes(); }, [filtro]);
 
   const cambiarStatus = async (id: string, status: "APROBADA" | "RECHAZADA") => {
-    await fetch(`${API}/portal/solicitudes/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ status }),
-    });
+    await apiClient.patch(`/portal/solicitudes/${id}`, { status });
     fetchSolicitudes();
   };
 

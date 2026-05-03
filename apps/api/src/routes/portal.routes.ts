@@ -1,9 +1,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
 import { prisma } from '../config/database';
+import { env } from '../config/env';
 import { ApiSuccess, ApiError } from '../utils/response';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { requireRole } from '../middlewares/role.middleware';
 import { createPreference, getPayment } from '../services/mercadopago.service';
+import { hashPassword } from '../utils/bcrypt';
 import { z } from 'zod';
 
 const router = Router();
@@ -153,8 +156,13 @@ router.post('/solicitar-cuenta', async (req: Request, res: Response, next: NextF
 router.get('/solicitudes', authMiddleware, requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { status } = req.query as { status?: string };
+    const validStatuses = ['PENDIENTE', 'APROBADA', 'RECHAZADA'] as const;
+    type SolicitudStatus = typeof validStatuses[number];
+    const whereStatus = status && (validStatuses as readonly string[]).includes(status)
+      ? { status: status as SolicitudStatus }
+      : undefined;
     const solicitudes = await prisma.solicitudCuenta.findMany({
-      where: status ? { status } : undefined,
+      where: whereStatus,
       orderBy: { createdAt: 'desc' },
     });
     ApiSuccess(res, solicitudes);
@@ -172,11 +180,259 @@ router.patch('/solicitudes/:id', authMiddleware, requireRole('ADMIN'), async (re
       ApiError(res, 'INVALID_STATUS', 'Status debe ser APROBADA o RECHAZADA', 400);
       return;
     }
-    const solicitud = await prisma.solicitudCuenta.update({
+
+    const solicitud = await prisma.solicitudCuenta.findUnique({ where: { id } });
+    if (!solicitud) {
+      ApiError(res, 'NOT_FOUND', 'Solicitud no encontrada', 404);
+      return;
+    }
+
+    if (status === 'APROBADA') {
+      const existingUser = await prisma.user.findUnique({ where: { email: solicitud.email } });
+      if (existingUser) {
+        ApiError(res, 'EMAIL_TAKEN', 'Ya existe un usuario con ese correo', 409);
+        return;
+      }
+
+      const { v4: uuidv4 } = await import('uuid');
+      const tempPassword = Math.random().toString(36).slice(2, 10);
+      const hashedPassword = await hashPassword(tempPassword);
+      const hashedPin = await hashPassword('0000');
+      const qrCode = uuidv4();
+
+      const [updatedSolicitud, cliente] = await prisma.$transaction([
+        prisma.solicitudCuenta.update({
+          where: { id },
+          data: { status: 'APROBADA' },
+        }),
+        prisma.user.create({
+          data: {
+            email: solicitud.email,
+            password: hashedPassword,
+            role: 'CLIENT',
+            client: {
+              create: {
+                firstName: solicitud.nombre,
+                lastName: solicitud.apellido,
+                phone: solicitud.telefono,
+                qrCode,
+                pin: hashedPin,
+              },
+            },
+          },
+          select: {
+            id: true,
+            email: true,
+            client: {
+              select: { id: true, firstName: true, lastName: true, phone: true, qrCode: true },
+            },
+          },
+        }),
+      ]);
+
+      ApiSuccess(res, { solicitud: updatedSolicitud, cliente, tempPassword });
+      return;
+    }
+
+    const solicitudActualizada = await prisma.solicitudCuenta.update({
       where: { id },
-      data: { status },
+      data: { status: 'RECHAZADA' },
     });
-    ApiSuccess(res, solicitud);
+    ApiSuccess(res, { solicitud: solicitudActualizada });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/v1/portal/buscar-cliente — público, widget landing
+// Verifica email → devuelve estado + QR + membresías activas + token provisional
+// ─────────────────────────────────────────────────────────────────────────────
+const buscarClienteSchema = z.object({ email: z.string().email() });
+
+router.post('/buscar-cliente', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parse = buscarClienteSchema.safeParse(req.body);
+    if (!parse.success) {
+      ApiError(res, 'VALIDATION_ERROR', 'Email inválido', 400);
+      return;
+    }
+
+    const { email } = parse.data;
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        client: {
+          include: {
+            memberships: {
+              where: {
+                status: 'ACTIVE',
+                expiresAt: { gt: new Date() },
+                sessionsRemaining: { gt: 0 },
+                deletedAt: null,
+              },
+              include: {
+                package: {
+                  select: {
+                    name: true,
+                    category: true,
+                    classSubtype: true,
+                    tipoActividadId: true,
+                    tipoActividad: { select: { nombre: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user || !user.client) {
+      const solicitud = await prisma.solicitudCuenta.findFirst({
+        where: { email },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (solicitud) {
+        const statusMap: Record<string, string> = { PENDIENTE: 'pendiente', APROBADA: 'aprobada_sin_cuenta', RECHAZADA: 'rechazada' };
+        ApiSuccess(res, { status: statusMap[solicitud.status] ?? 'pendiente' });
+        return;
+      }
+      ApiSuccess(res, { status: 'not_found' });
+      return;
+    }
+
+    const provisionalToken = jwt.sign(
+      { clientId: user.client.id, userId: user.id, email: user.email, type: 'provisional' },
+      env.JWT_SECRET,
+      { expiresIn: '30m' }
+    );
+
+    ApiSuccess(res, {
+      status: 'found',
+      nombre: `${user.client.firstName} ${user.client.lastName}`,
+      qrCode: user.client.qrCode,
+      provisionalToken,
+      memberships: user.client.memberships.map((m) => ({
+        id: m.id,
+        packageName: m.package.name,
+        category: m.package.category,
+        classSubtype: m.package.classSubtype ?? null,
+        tipoActividadId: m.package.tipoActividadId ?? null,
+        tipoActividadNombre: m.package.tipoActividad?.nombre ?? null,
+        sessionsRemaining: m.sessionsRemaining,
+        expiresAt: m.expiresAt,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/v1/portal/reservar-provisional — token provisional (30 min)
+// Crea reserva usando una membresía activa del cliente; valida tipo de clase
+// ─────────────────────────────────────────────────────────────────────────────
+const reservaProvSchema = z.object({
+  claseId:      z.string().min(1),
+  membresiaId:  z.string().min(1),
+  token:        z.string().min(1),
+});
+
+router.post('/reservar-provisional', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const parse = reservaProvSchema.safeParse(req.body);
+    if (!parse.success) {
+      ApiError(res, 'VALIDATION_ERROR', 'Datos inválidos', 400);
+      return;
+    }
+
+    const { claseId, membresiaId, token } = parse.data;
+
+    // Verificar token provisional
+    let decoded: { clientId: string; type: string };
+    try {
+      decoded = jwt.verify(token, env.JWT_SECRET) as { clientId: string; type: string };
+    } catch {
+      ApiError(res, 'TOKEN_INVALID', 'Token expirado o inválido', 401);
+      return;
+    }
+    if (decoded.type !== 'provisional') {
+      ApiError(res, 'TOKEN_INVALID', 'Token inválido', 401);
+      return;
+    }
+
+    const clientId = decoded.clientId;
+
+    // Cargar clase y membresía en paralelo
+    const [clase, membresia] = await Promise.all([
+      prisma.class.findUnique({
+        where: { id: claseId },
+        include: { tipoActividad: { select: { id: true, nombre: true } } },
+      }),
+      prisma.membership.findUnique({
+        where: { id: membresiaId },
+        include: { package: { select: { classSubtype: true, tipoActividadId: true, category: true } } },
+      }),
+    ]);
+
+    if (!clase) { ApiError(res, 'CLASS_NOT_FOUND', 'Clase no encontrada', 404); return; }
+    if (!membresia || membresia.clientId !== clientId) {
+      ApiError(res, 'MEMBERSHIP_NOT_FOUND', 'Membresía no encontrada', 404); return;
+    }
+    if (membresia.status !== 'ACTIVE' || membresia.sessionsRemaining <= 0) {
+      ApiError(res, 'NO_SESSIONS', 'Sin sesiones disponibles en esta membresía', 400); return;
+    }
+    if (new Date(membresia.expiresAt) < new Date()) {
+      ApiError(res, 'MEMBERSHIP_EXPIRED', 'La membresía ha expirado', 400); return;
+    }
+
+    // Verificar que el tipo de clase sea compatible con el paquete
+    const pkg = membresia.package;
+    if (pkg.tipoActividadId && clase.tipoActividad && pkg.tipoActividadId !== clase.tipoActividad.id) {
+      ApiError(res, 'CLASS_TYPE_MISMATCH',
+        `Tu paquete es para ${clase.tipoActividad.nombre}. Esta clase no aplica.`, 400);
+      return;
+    }
+
+    // Verificar spot disponible
+    const spotsUsed = await prisma.reservation.count({
+      where: { classId: claseId, status: { in: ['PENDING_APPROVAL', 'CONFIRMED'] } },
+    });
+    if (clase.capacity !== null && spotsUsed >= clase.capacity) {
+      ApiError(res, 'CLASS_FULL', 'No hay lugares disponibles', 400); return;
+    }
+
+    // Verificar no duplicado
+    const existente = await prisma.reservation.findUnique({
+      where: { clientId_classId: { clientId, classId: claseId } },
+    });
+    if (existente) {
+      ApiError(res, 'ALREADY_RESERVED', 'Ya tienes una reservación para esta clase', 409); return;
+    }
+
+    // Crear reserva y descontar sesión atómicamente
+    await prisma.$transaction([
+      prisma.reservation.create({
+        data: {
+          clientId,
+          classId: claseId,
+          membershipId: membresiaId,
+          status: 'CONFIRMED',
+          origin: 'PORTAL',
+        },
+      }),
+      prisma.membership.update({
+        where: { id: membresiaId },
+        data: {
+          sessionsUsed:      { increment: 1 },
+          sessionsRemaining: { decrement: 1 },
+        },
+      }),
+    ]);
+
+    ApiSuccess(res, { mensaje: 'Reservación confirmada' }, 201);
   } catch (error) {
     next(error);
   }

@@ -120,6 +120,7 @@ async function main() {
   await prisma.client.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.solicitudCuenta.deleteMany();
 
   console.log('✓ Tablas limpiadas\n');
 
@@ -310,6 +311,16 @@ async function main() {
   console.log(`✓ ${totalClases} clases creadas para la semana 27 Abr – 2 May 2026`);
   console.log(`   Reformer: ${REFORMER_SCHEDULE.length} clases (Flow / Power / Mobility)`);
   console.log(`   Mat:      ${MAT_SCHEDULE.length} clases (Mat / GAP)\n`);
+
+  // ─── SOLICITUDES DE CUENTA (prueba) ──────────────────────────────────────────
+  await prisma.solicitudCuenta.createMany({
+    data: [
+      { nombre: 'Gabriela', apellido: 'Torres', email: 'gaby.torres@gmail.com',   telefono: '9981234567', mensaje: 'Me interesa el reformer', status: 'PENDIENTE' },
+      { nombre: 'Karla',    apellido: 'Reyes',  email: 'karla.reyes@gmail.com',   telefono: '9987654321', status: 'PENDIENTE' },
+      { nombre: 'Sofía',    apellido: 'Mendez', email: 'sofia.mendez@outlook.com', telefono: '9989988776', mensaje: 'Vi sus clases en Instagram', status: 'APROBADA' },
+    ],
+  });
+  console.log('✓ 3 solicitudes de cuenta creadas (2 pendientes, 1 aprobada)\n');
 
   console.log('✅ Seed completado exitosamente!');
   console.log('─────────────────────────────────────────────');

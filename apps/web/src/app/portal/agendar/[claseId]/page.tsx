@@ -50,6 +50,8 @@ export default function AgendarPage() {
   const [isAuthed, setIsAuthed] = useState<boolean | null>(null);
   const [clienteNombre, setClienteNombre] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [qrData, setQrData] = useState<{ qrImage: string; name: string } | null>(null);
+  const [descargandoQR, setDescargandoQR] = useState(false);
 
   useEffect(() => {
     if (MP_PUBLIC_KEY) initMercadoPago(MP_PUBLIC_KEY, { locale: "es-MX" });
@@ -102,17 +104,27 @@ export default function AgendarPage() {
         pagarAhora: false,
         portalWaConfirmed: waConfirmed,
       });
-      setModo("exito_solicitud");
-      // Descarga automática de tarjeta QR al confirmar reservación
+      // Cargamos el QR en segundo plano para tenerlo listo si el usuario lo quiere
       try {
         const res = await portalAuthClient.get<{ success: boolean; data: { qrImage: string; name: string } }>("/portal/mi-qr");
-        await downloadQRCard(res.data.data.qrImage, res.data.data.name);
+        setQrData(res.data.data);
       } catch {
-        // No bloqueamos el flujo si falla la descarga del QR
+        // Si falla, el botón de descarga no aparece — no bloqueamos el flujo
       }
+      setModo("exito_solicitud");
     } catch (err) {
       handleErrorApi(err);
       setModo("elegir");
+    }
+  }
+
+  async function handleDescargarCredencial() {
+    if (!qrData) return;
+    setDescargandoQR(true);
+    try {
+      await downloadQRCard(qrData.qrImage, qrData.name);
+    } finally {
+      setDescargandoQR(false);
     }
   }
 
@@ -395,45 +407,70 @@ export default function AgendarPage() {
 
       {/* ── Éxito solicitud ───────────────────────────────────────────────────── */}
       {modo === "exito_solicitud" && (
-        <div className="bg-white rounded-2xl border border-[#254F40]/10 p-8 text-center">
-          <div className="w-14 h-14 bg-[#254F40]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="w-7 h-7 text-[#254F40]" />
+        <div className="space-y-4">
+          {/* Confirmación */}
+          <div className="bg-white rounded-2xl border border-[#254F40]/10 p-8 text-center">
+            <div className="w-14 h-14 bg-[#254F40]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-7 h-7 text-[#254F40]" />
+            </div>
+            <h2 className="font-bold text-[#254F40] text-lg mb-2">¡Solicitud enviada!</h2>
+            <p className="text-sm text-[#254F40]/60 mb-6">
+              El equipo de Sarui Studio revisará tu solicitud y te confirmará por WhatsApp.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => router.push("/portal/mis-agendas")}
+                className="px-5 py-2.5 rounded-xl bg-[#254F40] text-[#F6FFB5] text-sm font-semibold hover:bg-[#254F40]/90 transition-colors"
+              >
+                Ver mis agendas
+              </button>
+              <button
+                onClick={() => router.push("/portal/clases")}
+                className="px-5 py-2.5 rounded-xl border border-[#254F40]/20 text-sm text-[#254F40]/70 hover:bg-[#254F40]/5 transition-colors"
+              >
+                Ver más clases
+              </button>
+            </div>
           </div>
-          <h2 className="font-bold text-[#254F40] text-lg mb-2">¡Solicitud enviada!</h2>
-          <p className="text-sm text-[#254F40]/60 mb-2">
-            El equipo de Sarui Studio revisará tu solicitud y te confirmará por WhatsApp.
-          </p>
-          <p className="text-xs text-[#254F40]/40 mb-6">
-            Tu tarjeta QR de acceso se descargó automáticamente.
-          </p>
-          <div className="flex flex-col gap-2 mb-4">
-            <button
-              onClick={async () => {
-                try {
-                  const res = await portalAuthClient.get<{ success: boolean; data: { qrImage: string; name: string } }>("/portal/mi-qr");
-                  await downloadQRCard(res.data.data.qrImage, res.data.data.name);
-                } catch { /* ignore */ }
-              }}
-              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-[#254F40]/30 text-sm text-[#254F40] hover:bg-[#254F40]/5 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              Descargar mi tarjeta QR
-            </button>
-          </div>
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={() => router.push("/portal/mis-agendas")}
-              className="px-5 py-2.5 rounded-xl bg-[#254F40] text-[#F6FFB5] text-sm font-semibold hover:bg-[#254F40]/90 transition-colors"
-            >
-              Ver mis agendas
-            </button>
-            <button
-              onClick={() => router.push("/portal/clases")}
-              className="px-5 py-2.5 rounded-xl border border-[#254F40]/20 text-sm text-[#254F40]/70 hover:bg-[#254F40]/5 transition-colors"
-            >
-              Ver más clases
-            </button>
-          </div>
+
+          {/* Prompt de credencial */}
+          {qrData && (
+            <div className="bg-white rounded-2xl border border-[#254F40]/10 p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-[#254F40]/10 rounded-xl flex items-center justify-center shrink-0">
+                  <Download className="w-5 h-5 text-[#254F40]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-[#254F40] text-sm mb-1">
+                    ¿Deseas descargar tu credencial de acceso?
+                  </p>
+                  <p className="text-xs text-[#254F40]/50 mb-4">
+                    Preséntala en el kiosk cada vez que llegues al estudio.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleDescargarCredencial}
+                      disabled={descargandoQR}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#254F40] text-[#F6FFB5] text-sm font-medium hover:bg-[#254F40]/90 transition-colors disabled:opacity-60"
+                    >
+                      {descargandoQR ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5" />
+                      )}
+                      {descargandoQR ? "Descargando..." : "Sí, descargar"}
+                    </button>
+                    <button
+                      onClick={() => setQrData(null)}
+                      className="px-4 py-2 rounded-lg border border-[#254F40]/20 text-sm text-[#254F40]/60 hover:bg-[#254F40]/5 transition-colors"
+                    >
+                      Ahora no
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

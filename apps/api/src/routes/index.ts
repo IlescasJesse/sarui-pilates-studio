@@ -12,6 +12,9 @@ import tipoActividadesRoutes from './tipo-actividades.routes';
 import tipoMembresiasRoutes from './tipo-membresias.routes';
 import portalRoutes from './portal.routes';
 import webhookRoutes from './webhook.routes';
+import perfilRoutes from './perfil.routes';
+import usuariosRoutes from './usuarios.routes';
+import contabilidadRoutes from './contabilidad.routes';
 
 const router = Router();
 
@@ -31,5 +34,8 @@ router.use('/clases', clasesRoutes);
 router.use('/reservaciones', reservacionesRoutes);
 router.use('/instructores', instructoresRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/perfil', perfilRoutes);
+router.use('/usuarios', usuariosRoutes);
+router.use('/contabilidad', contabilidadRoutes);
 
 export default router;

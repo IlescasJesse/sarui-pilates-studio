@@ -5,7 +5,8 @@ import { env } from '../config/env';
 import { ApiSuccess, ApiError } from '../utils/response';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { requireRole } from '../middlewares/role.middleware';
-import { createPreference, getPayment } from '../services/mercadopago.service';
+import { createPreference, getPayment, createPackagePreference } from '../services/mercadopago.service';
+import { PaymentMethod } from '@prisma/client';
 import { hashPassword } from '../utils/bcrypt';
 import QRCode from 'qrcode';
 import { z } from 'zod';
@@ -440,6 +441,22 @@ router.post('/reservar-provisional', async (req: Request, res: Response, next: N
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/v1/portal/paquetes  — público, lista paquetes activos
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/paquetes', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const paquetes = await prisma.package.findMany({
+      where: { isActive: true, deletedAt: null },
+      include: { tipoActividad: { select: { nombre: true, color: true } } },
+      orderBy: { price: 'asc' },
+    });
+    ApiSuccess(res, paquetes);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // A partir de aquí requiere auth de CLIENT
 // ─────────────────────────────────────────────────────────────────────────────
 router.use(authMiddleware);
@@ -685,6 +702,167 @@ router.get('/mis-agendas', async (req: Request, res: Response, next: NextFunctio
 // Fallback para confirmar un pago desde la página de éxito cuando el webhook
 // no puede alcanzar localhost. Verifica el pago directamente con MercadoPago.
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/v1/portal/mis-membresias  — membresías activas del cliente
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/mis-membresias', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const client = await prisma.client.findUnique({
+      where: { userId: req.user!.id, deletedAt: null },
+    });
+    if (!client) {
+      ApiError(res, 'CLIENT_NOT_FOUND', 'Perfil no encontrado', 404);
+      return;
+    }
+
+    const now = new Date();
+    const membresias = await prisma.membership.findMany({
+      where: {
+        clientId: client.id,
+        deletedAt: null,
+        status: 'ACTIVE',
+        expiresAt: { gt: now },
+        sessionsRemaining: { gt: 0 },
+      },
+      include: {
+        package: { include: { tipoActividad: { select: { nombre: true, color: true } } } },
+      },
+      orderBy: { expiresAt: 'asc' },
+    });
+
+    ApiSuccess(res, membresias);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/v1/portal/comprar-paquete  — crea preference MP para un paquete
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/comprar-paquete', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { packageId } = req.body as { packageId?: string };
+    if (!packageId) {
+      ApiError(res, 'MISSING_PACKAGE', 'Se requiere packageId', 400);
+      return;
+    }
+
+    const client = await prisma.client.findUnique({
+      where: { userId: req.user!.id, deletedAt: null },
+      include: { user: { select: { email: true } } },
+    });
+    if (!client) {
+      ApiError(res, 'CLIENT_NOT_FOUND', 'Perfil no encontrado', 404);
+      return;
+    }
+
+    const pkg = await prisma.package.findFirst({
+      where: { id: packageId, isActive: true, deletedAt: null },
+    });
+    if (!pkg) {
+      ApiError(res, 'NOT_FOUND', 'Paquete no encontrado', 404);
+      return;
+    }
+
+    const preference = await createPackagePreference({
+      packageId: pkg.id,
+      clientId: client.id,
+      clientName: `${client.firstName} ${client.lastName}`,
+      clientEmail: client.user.email,
+      packageName: pkg.name,
+      sessions: pkg.sessions,
+      amount: Number(pkg.price),
+    });
+
+    ApiSuccess(res, { preferenceId: preference.id, checkoutUrl: preference.init_point });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/v1/portal/verificar-pago-paquete  — fallback si el webhook no llega
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/verificar-pago-paquete', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { paymentId } = req.body as { paymentId?: string };
+    if (!paymentId) {
+      ApiError(res, 'MISSING_PAYMENT_ID', 'Se requiere paymentId', 400);
+      return;
+    }
+
+    const payment = await getPayment(paymentId);
+    const externalRef = payment.external_reference;
+
+    if (!externalRef?.startsWith('PKG:')) {
+      ApiError(res, 'INVALID_PAYMENT', 'Pago no corresponde a un paquete', 400);
+      return;
+    }
+
+    const parts = externalRef.split(':');
+    if (parts.length !== 3) {
+      ApiError(res, 'INVALID_PAYMENT', 'Referencia de pago malformada', 400);
+      return;
+    }
+    const packageId = parts[1];
+    const clientId = parts[2];
+
+    const client = await prisma.client.findUnique({
+      where: { userId: req.user!.id, deletedAt: null },
+    });
+    if (!client || client.id !== clientId) {
+      ApiError(res, 'FORBIDDEN', 'No tienes acceso a este pago', 403);
+      return;
+    }
+
+    if (payment.status === 'approved') {
+      const pkg = await prisma.package.findFirst({ where: { id: packageId, deletedAt: null } });
+      if (pkg) {
+        const nowDate = new Date();
+        const expiresAt = new Date(nowDate);
+        expiresAt.setDate(expiresAt.getDate() + pkg.validityDays);
+        const mpPaymentId = String(paymentId);
+
+        await prisma.$transaction(async (tx) => {
+          const membership = await tx.membership.upsert({
+            where: { mercadoPagoPaymentId: mpPaymentId },
+            create: {
+              clientId,
+              packageId,
+              status: 'ACTIVE',
+              totalSessions: pkg.sessions,
+              sessionsUsed: 0,
+              sessionsRemaining: pkg.sessions,
+              startDate: nowDate,
+              expiresAt,
+              pricePaid: pkg.price,
+              paymentStatus: 'PAID',
+              paymentMethod: 'MERCADO_PAGO' as PaymentMethod,
+              mercadoPagoPaymentId: mpPaymentId,
+            },
+            update: {},
+          });
+
+          await tx.payment.create({
+            data: {
+              membershipId: membership.id,
+              amount: payment.transaction_amount ?? pkg.price,
+              method: 'MERCADO_PAGO' as PaymentMethod,
+              status: 'PAID',
+              reference: mpPaymentId,
+              paidAt: nowDate,
+            },
+          });
+        });
+      }
+    }
+
+    ApiSuccess(res, { status: payment.status });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post('/verificar-pago', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { paymentId } = req.body as { paymentId?: string };
@@ -721,6 +899,7 @@ router.post('/verificar-pago', async (req: Request, res: Response, next: NextFun
       return;
     }
 
+    // Si el pago fue aprobado, actualizar la reservación
     if (payment.status === 'approved' && reservacion.status === 'PENDING_APPROVAL') {
       await prisma.$transaction(async (tx) => {
         await tx.reservation.update({
@@ -747,7 +926,15 @@ router.post('/verificar-pago', async (req: Request, res: Response, next: NextFun
       });
     }
 
-    ApiSuccess(res, { status: payment.status, reservacionStatus: 'CONFIRMED' });
+    // Obtener el estado actualizado de la reservación después de la transacción
+    const updatedReservacion = await prisma.reservation.findUnique({
+      where: { id: reservationId },
+    });
+
+    ApiSuccess(res, {
+      status: payment.status,
+      reservacionStatus: updatedReservacion?.status ?? reservacion.status,
+    });
   } catch (error) {
     next(error);
   }

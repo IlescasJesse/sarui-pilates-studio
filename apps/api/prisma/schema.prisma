@@ -109,6 +109,7 @@ enum PaymentMethod {
   CARD
   TRANSFER
   OTHER
+  MERCADO_PAGO
 }
 
 // ============================================================
@@ -319,6 +320,7 @@ model Membership {
   pricePaid            Decimal          @db.Decimal(10, 2)
   paymentStatus        PaymentStatus    @default(PENDING)
   paymentMethod        PaymentMethod?
+  mercadoPagoPaymentId String?          @unique
 
   notes                String?
 

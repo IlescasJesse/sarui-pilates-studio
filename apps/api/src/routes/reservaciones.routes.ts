@@ -147,7 +147,8 @@ router.post(
           const membership = await tx.membership.findUnique({
             where: { id: parseResult.data.membershipId },
           });
-          if (membership && membership.sessionsRemaining > 0) {
+          // Validar que la membresía existe, pertenece al cliente y tiene sesiones
+          if (membership && membership.clientId === parseResult.data.clientId && membership.sessionsRemaining > 0) {
             await tx.membership.update({
               where: { id: parseResult.data.membershipId },
               data: {
@@ -156,6 +157,9 @@ router.post(
                 status: membership.sessionsRemaining - 1 <= 0 ? 'EXHAUSTED' : 'ACTIVE',
               },
             });
+          } else if (membership && membership.clientId !== parseResult.data.clientId) {
+            // La membresía no pertenece a este cliente — log para auditoría, no error
+            console.warn(`Membership ${parseResult.data.membershipId} does not belong to client ${parseResult.data.clientId}`);
           }
         }
 

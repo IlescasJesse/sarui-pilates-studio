@@ -43,6 +43,7 @@
 **Status**: pending
 **Priority**: medium
 **Requirements**: HELP-01, HELP-02, HELP-03
+**Plans**: 3 plans
 
 **Success Criteria:**
 1. Link de "Ayuda" visible en el sidebar del dashboard
@@ -51,10 +52,15 @@
 4. Manual de cliente cubre: reservar clases, pagar, cancelar
 5. Contenido con los colores de marca `#254F40`, `#F6FFB5`, `#FDFFEC`
 
+**Plans:**
+- [ ] 03-01-PLAN.md — Add "Ayuda" link to sidebar, install Tabs and Accordion components
+- [ ] 03-02-PLAN.md — Create help page with Tabs, ManualAdmin and ManualCliente components
+- [ ] 03-03-PLAN.md — Add search/filter functionality to help page
+
 **Notes:**
-- Componente MDX o contenido renderizado directamente — no PDF
-- Sección nueva en `(dashboard)/ayuda/` o `(dashboard)/soporte/`
-- UI limpia con búsqueda y secciones colapsables
+- Componentes React (.tsx) usando shadcn/ui (Card, Accordion, Tabs) — no MDX
+- Sección en `(dashboard)/ayuda/`
+- UI limpia con búsqueda y secciones colapsables usando framer-motion
 
 ### Phase 4: Audit & Reporte de Hallazgos
 **Goal**: Investigar y documentar otros bugs y áreas grises encontrados durante la ejecución

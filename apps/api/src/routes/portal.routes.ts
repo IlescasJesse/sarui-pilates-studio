@@ -873,6 +873,10 @@ router.post('/verificar-pago', async (req: Request, res: Response, next: NextFun
     }
 
     const payment = await getPayment(paymentId);
+    if (!payment) {
+      ApiError(res, 'PAYMENT_NOT_FOUND', 'No se pudo obtener información del pago', 400);
+      return;
+    }
     const reservationId = payment.external_reference;
 
     if (!reservationId) {
@@ -912,7 +916,7 @@ router.post('/verificar-pago', async (req: Request, res: Response, next: NextFun
           create: {
             reservationId,
             amount: payment.transaction_amount ?? 0,
-            method: 'CARD',
+            method: 'MERCADO_PAGO',
             status: 'PAID',
             reference: String(paymentId),
             paidAt: new Date(),

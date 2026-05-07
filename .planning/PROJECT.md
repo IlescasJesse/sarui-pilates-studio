@@ -20,6 +20,7 @@ Los clientes pueden reservar clases y el staff puede gestionarlas sin errores �
 - ✓ Integración MercadoPago con webhook — existente
 - ✓ Autenticación JWT con roles (admin, staff, cliente) — existente
 - ✓ Calendario FullCalendar para horarios de clases — existente
+- ✓ Sección de contabilidad en admin (`/contabilidad`) — existente pero básica
 
 ### Active
 
@@ -29,6 +30,13 @@ Los clientes pueden reservar clases y el staff puede gestionarlas sin errores �
 - [ ] **HELP-02**: Manual de uso para admin/staff dentro de la página de ayuda
 - [ ] **HELP-03**: Manual de uso para portal de clientes dentro de la página de ayuda
 - [ ] **AUDIT-01**: Investigar y reportar otros bugs o áreas grises encontrados durante el proceso
+
+### Deferred to v2
+
+- [ ] **ACCT-01**: Dashboard contable con resumen de ingresos, gastos y gráficos
+- [ ] **ACCT-02**: Reporte de membresías activas y sus ingresos
+- [ ] **ACCT-03**: Reporte de clases más rentables
+- [ ] **ACCT-04**: Visualización de tendencias de pago
 
 ### Out of Scope
 

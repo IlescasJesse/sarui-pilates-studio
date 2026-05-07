@@ -1,7 +1,10 @@
 {
   "name": "sarui-studio",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "concurrently \"npm run dev --workspace=apps/web\" \"npm run dev --workspace=apps/api\"",
     "dev:web": "npm run dev --workspace=apps/web",

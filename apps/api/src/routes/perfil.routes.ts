@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import bcrypt from 'bcrypt';
+import { hashPassword, comparePassword } from '../utils/bcrypt';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { prisma } from '../config/database';
 import { ApiSuccess, ApiError } from '../utils/response';
@@ -92,10 +92,10 @@ router.put('/password', async (req: Request, res: Response, next: NextFunction) 
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) { ApiError(res, 'NOT_FOUND', 'Usuario no encontrado', 404); return; }
 
-    const valido = await bcrypt.compare(parse.data.passwordActual, user.password);
+    const valido = await comparePassword(parse.data.passwordActual, user.password);
     if (!valido) { ApiError(res, 'INVALID_PASSWORD', 'Contraseña actual incorrecta', 400); return; }
 
-    const hash = await bcrypt.hash(parse.data.passwordNuevo, 10);
+    const hash = await hashPassword(parse.data.passwordNuevo);
     await prisma.user.update({ where: { id }, data: { password: hash } });
 
     ApiSuccess(res, { mensaje: 'Contraseña actualizada' });

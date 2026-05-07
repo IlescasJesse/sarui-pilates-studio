@@ -22,6 +22,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <a href="/portal/mis-agendas" className="opacity-80 hover:opacity-100 transition-opacity">
               Mis Agendas
             </a>
+            <a href="/portal/membresia" className="opacity-80 hover:opacity-100 transition-opacity">
+              Membresía
+            </a>
             <a
               href="/portal/login"
               className="bg-[#F6FFB5] text-[#254F40] font-semibold px-3 py-1.5 rounded-lg text-sm hover:bg-[#F6FFB5]/90 transition-colors"

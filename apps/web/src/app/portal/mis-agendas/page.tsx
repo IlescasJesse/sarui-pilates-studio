@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMisAgendas, type AgendaPortal } from "@/hooks/usePortal";
-import { Calendar, Clock, CheckCircle, Clock3, XCircle, Loader2 } from "lucide-react";
+import { useMisAgendas, useMisMembresias, type AgendaPortal } from "@/hooks/usePortal";
+import { Calendar, Clock, CheckCircle, Clock3, XCircle, Loader2, Package } from "lucide-react";
 
 function formatFecha(iso: string) {
   return new Date(iso).toLocaleDateString("es-MX", {
@@ -102,6 +102,7 @@ export default function MisAgendasPage() {
   }, [router]);
 
   const { data: agendas, isLoading } = useMisAgendas();
+  const { data: membresias } = useMisMembresias();
 
   if (isAuthed === null || isLoading) {
     return (
@@ -118,6 +119,25 @@ export default function MisAgendasPage() {
         <h1 className="text-2xl font-bold text-[#254F40]">Mis agendas</h1>
         <p className="text-sm text-[#254F40]/60 mt-1">Tus reservaciones en Sarui Studio</p>
       </div>
+
+      {/* Banner si no tiene membresía activa */}
+      {membresias !== undefined && membresias.length === 0 && (
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+          <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+            <Package className="w-4 h-4 text-amber-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-amber-800">Sin membresía activa</p>
+            <p className="text-xs text-amber-600 mt-0.5">Adquiere un paquete para reservar clases.</p>
+          </div>
+          <button
+            onClick={() => router.push("/portal/membresia")}
+            className="shrink-0 text-xs font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Ver paquetes
+          </button>
+        </div>
+      )}
 
       {!agendas || agendas.length === 0 ? (
         <div className="text-center py-16 text-[#254F40]/50">

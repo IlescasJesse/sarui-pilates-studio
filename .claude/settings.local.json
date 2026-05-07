@@ -19,7 +19,16 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
-      "Bash(grep -E \"\\\\.ts$\")"
+      "Bash(grep -E \"\\\\.ts$\")",
+      "Read(//Users/jesseilescas/.claude/skills/**)",
+      "Read(//Users/jesseilescas/.claude/plugins/cache/**)",
+      "Bash(python3 $MEASURE_PY *)",
+      "Bash(python3 -c \"import sys; print\\(sys.version\\)\")"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "claude-flow"
+  ],
+  "prefersReducedMotion": true
 }

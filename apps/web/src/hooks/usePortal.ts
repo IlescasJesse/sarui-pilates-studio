@@ -80,6 +80,74 @@ export function useMisAgendas() {
   });
 }
 
+export interface PaquetePortal {
+  id: string;
+  name: string;
+  sessions: number;
+  price: string;
+  validityDays: number;
+  description: string | null;
+  category: string;
+  tipoActividad: { nombre: string; color: string } | null;
+}
+
+export interface MembresiaPortal {
+  id: string;
+  status: string;
+  sessionsRemaining: number;
+  sessionsUsed: number;
+  totalSessions: number;
+  startDate: string;
+  expiresAt: string;
+  pricePaid: string;
+  package: {
+    name: string;
+    tipoActividad: { nombre: string; color: string } | null;
+  };
+}
+
+export function usePortalPaquetes() {
+  return useQuery({
+    queryKey: ['portal', 'paquetes'],
+    queryFn: async () => {
+      const res = await portalPublicClient.get<{ success: boolean; data: PaquetePortal[] }>(
+        '/portal/paquetes'
+      );
+      return res.data.data;
+    },
+    staleTime: 300_000,
+  });
+}
+
+export function useMisMembresias() {
+  return useQuery({
+    queryKey: ['portal', 'mis-membresias'],
+    queryFn: async () => {
+      const res = await portalAuthClient.get<{ success: boolean; data: MembresiaPortal[] }>(
+        '/portal/mis-membresias'
+      );
+      return res.data.data;
+    },
+    enabled: typeof window !== 'undefined' && !!localStorage.getItem('sarui_token'),
+  });
+}
+
+export function useComprarPaquete() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (packageId: string) => {
+      const res = await portalAuthClient.post<{
+        success: boolean;
+        data: { preferenceId: string; checkoutUrl: string };
+      }>('/portal/comprar-paquete', { packageId });
+      return res.data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['portal', 'mis-membresias'] });
+    },
+  });
+}
+
 // ── Mutations ─────────────────────────────────────────────────────────────────
 export function useCrearReservaPortal() {
   const qc = useQueryClient();

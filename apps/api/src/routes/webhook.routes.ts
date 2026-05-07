@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { createHmac } from 'crypto';
 import { prisma } from '../config/database';
 import { getPayment } from '../services/mercadopago.service';
+import { PaymentMethod } from '@prisma/client';
 import { ApiSuccess } from '../utils/response';
 import { env } from '../config/env';
 
@@ -55,15 +56,72 @@ router.post('/mercadopago', async (req: Request, res: Response, next: NextFuncti
 
     const payment = await getPayment(data.id);
 
-    // external_reference contiene el reservationId
-    const reservationId = payment.external_reference;
-    if (!reservationId) {
+    const externalRef = payment.external_reference;
+    if (!externalRef) {
       res.sendStatus(200);
       return;
     }
 
+    // Pago de paquete/membresía: PKG:{packageId}:{clientId}
+    if (externalRef.startsWith('PKG:')) {
+      const parts = externalRef.split(':');
+      if (parts.length !== 3) {
+        res.sendStatus(200);
+        return;
+      }
+      const packageId = parts[1];
+      const clientId = parts[2];
+
+      if (payment.status === 'approved') {
+        const pkg = await prisma.package.findFirst({ where: { id: packageId, deletedAt: null } });
+        if (pkg) {
+          const now = new Date();
+          const expiresAt = new Date(now);
+          expiresAt.setDate(expiresAt.getDate() + pkg.validityDays);
+          const mpPaymentId = String(data.id);
+
+          await prisma.$transaction(async (tx) => {
+            const membership = await tx.membership.upsert({
+              where: { mercadoPagoPaymentId: mpPaymentId },
+              create: {
+                clientId,
+                packageId,
+                status: 'ACTIVE',
+                totalSessions: pkg.sessions,
+                sessionsUsed: 0,
+                sessionsRemaining: pkg.sessions,
+                startDate: now,
+                expiresAt,
+                pricePaid: pkg.price,
+                paymentStatus: 'PAID',
+                paymentMethod: 'MERCADO_PAGO' as PaymentMethod,
+                mercadoPagoPaymentId: mpPaymentId,
+              },
+              update: {},
+            });
+
+            await tx.payment.create({
+              data: {
+                membershipId: membership.id,
+                amount: payment.transaction_amount ?? pkg.price,
+                method: 'MERCADO_PAGO' as PaymentMethod,
+                status: 'PAID',
+                reference: mpPaymentId,
+                paidAt: now,
+              },
+            });
+          });
+        }
+      }
+
+      res.sendStatus(200);
+      return;
+    }
+
+    // Pago de reservación (flujo existente)
+    const reservationId = externalRef;
+
     if (payment.status === 'approved') {
-      // Confirmar la reservación y registrar el pago
       await prisma.$transaction(async (tx) => {
         const reservacion = await tx.reservation.update({
           where: { id: reservationId },
@@ -74,7 +132,6 @@ router.post('/mercadopago', async (req: Request, res: Response, next: NextFuncti
           include: { class: true },
         });
 
-        // Crear registro de pago
         await tx.payment.upsert({
           where: { reservationId },
           create: {
@@ -95,7 +152,6 @@ router.post('/mercadopago', async (req: Request, res: Response, next: NextFuncti
         return reservacion;
       });
     } else if (payment.status === 'rejected' || payment.status === 'cancelled') {
-      // Cancelar la reservación y liberar el spot
       const reservacion = await prisma.reservation.findUnique({
         where: { id: reservationId },
       });

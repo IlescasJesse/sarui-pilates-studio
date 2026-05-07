@@ -1,0 +1,26 @@
+{
+  "version": "1.0",
+  "workflow": {
+    "auto_discuss": false,
+    "auto_plan": false,
+    "require_approval": true,
+    "skip_verification": false
+  },
+  "models": {
+    "default": "haiku",
+    "complex": "sonnet",
+    "architecture": "opus"
+  },
+  "token_optimization": {
+    "use_fast_for_trivial": true,
+    "use_quick_for_simple": true,
+    "skip_map_codebase_if_recent": true,
+    "cache_codebase_context": true,
+    "minimize_subagent_usage": true
+  },
+  "git": {
+    "auto_commit": false,
+    "commit_message_style": "conventional",
+    "branch_prefix": "gsd/"
+  }
+}

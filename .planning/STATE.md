@@ -2,26 +2,26 @@
 
 **Project:** SarUI Studio — Bug Fixes & Help Center
 **Created:** 2026-05-06
-**Current Phase:** Phase 1 complete — ready for Phase 2
+**Current Phase:** Phase 3 context gathered — ready for planning
 **Version:** v0.3
 
 ## Active Phase
 
-**Phase 2: Fix Selección de Horas en Calendario** — awaiting `/gsd-discuss-phase 2` or `/gsd-plan-phase 2`
+**Phase 3: Página de Ayuda en Dashboard** — context gathered, awaiting `/gsd-plan-phase 3`
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-05-06)
 
 **Core value:** Los clientes pueden reservar clases y el staff puede gestionarlas sin errores — el sistema de reservaciones debe funcionar 100% del tiempo.
-**Current focus:** Phase 2 — Fix Selección de Horas en Calendario
+**Current focus:** Phase 3 — Página de Ayuda en Dashboard
 
 ## Phase History
 
 | Phase | Name | Status | Completed |
 |-------|------|--------|-----------|
 | 1 | Debug Asignación de Clases (500) | ✓ Complete | 2026-05-06 |
-| 2 | Fix Selección de Horas en Calendario | Pending | — |
+| 2 | Fix Selección de Horas en Calendario | ✓ Complete | 2026-05-06 |
 | 3 | Página de Ayuda en Dashboard | Pending | — |
 | 4 | Audit & Reporte de Hallazgos | Pending | — |
 | 5 | Dashboard Contable | Deferred | — |
@@ -40,4 +40,4 @@ See: `.planning/PROJECT.md` (updated 2026-05-06)
 
 ---
 *State initialized: 2026-05-06*
-*Last updated: 2026-05-06 after Phase 1 complete*
+*Last updated: 2026-05-06 after Phase 3 context gathered*

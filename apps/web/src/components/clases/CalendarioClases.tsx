@@ -24,6 +24,7 @@ import type {
   EventInput,
   BusinessHoursInput,
   DatesSetArg,
+  DateSelectArg,
 } from "@fullcalendar/core";
 
 // ─── SSR-safe FullCalendar ────────────────────────────────────────────────────
@@ -286,9 +287,8 @@ export function CalendarioClases() {
     setDateRange({ start: arg.start, end: arg.end });
   }, []);
 
-  const handleDateClick = useCallback((arg: { date: Date }) => {
-    const end = new Date(arg.date.getTime() + 60 * 60 * 1000);
-    setNuevaClaseSlot({ start: arg.date, end });
+  const handleSelect = useCallback((arg: DateSelectArg) => {
+    setNuevaClaseSlot({ start: arg.start, end: arg.end });
     setNuevaClaseDialogOpen(true);
   }, []);
 
@@ -340,11 +340,13 @@ export function CalendarioClases() {
           allDaySlot={false}
           slotEventOverlap={false}
           nowIndicator
+          selectable
+          unselectAuto
           businessHours={BUSINESS_HOURS}
           events={fcEvents}
           eventClick={handleEventClick}
+          select={handleSelect}
           datesSet={handleDatesSet}
-          dateClick={handleDateClick}
           height="auto"
           firstDay={1}
           eventTimeFormat={{ hour: "2-digit", minute: "2-digit", meridiem: false, hour12: false }}

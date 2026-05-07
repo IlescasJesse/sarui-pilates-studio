@@ -180,21 +180,21 @@ export default function PerfilPage() {
                 <label className="text-sm font-medium">Contraseña actual</label>
                 <Input type="password" {...passForm.register("passwordActual")} />
                 {passForm.formState.errors.passwordActual && (
-                  <p className="text-xs text-red-500">{passForm.formState.errors.passwordActual.message}</p>
+                  <p className="text-xs text-red-500">{passForm.formState.errors.passwordActual.message as string}</p>
                 )}
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Nueva contraseña</label>
                 <Input type="password" {...passForm.register("passwordNuevo")} />
                 {passForm.formState.errors.passwordNuevo && (
-                  <p className="text-xs text-red-500">{passForm.formState.errors.passwordNuevo.message}</p>
+                  <p className="text-xs text-red-500">{passForm.formState.errors.passwordNuevo.message as string}</p>
                 )}
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Confirmar nueva contraseña</label>
                 <Input type="password" {...passForm.register("confirmar")} />
                 {passForm.formState.errors.confirmar && (
-                  <p className="text-xs text-red-500">{passForm.formState.errors.confirmar.message}</p>
+                  <p className="text-xs text-red-500">{passForm.formState.errors.confirmar.message as string}</p>
                 )}
               </div>
               <Button type="submit" disabled={changePass.isPending} className="bg-[#254F40] hover:bg-[#254F40]/90">

@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import bcrypt from 'bcrypt';
+import { hashPassword } from '../utils/bcrypt';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { requireRole } from '../middlewares/role.middleware';
 import { prisma } from '../config/database';
@@ -72,7 +72,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     const existe = await prisma.user.findUnique({ where: { email } });
     if (existe) { ApiError(res, 'CONFLICT', 'Este correo ya está registrado', 409); return; }
 
-    const hash = await bcrypt.hash(password, 10);
+    const hash = await hashPassword(password);
 
     const user = await prisma.user.create({
       data: {

@@ -1,0 +1,47 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_FLOW_V3_ENABLED": "true",
+    "CLAUDE_FLOW_HOOKS_ENABLED": "true"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npx @claude-flow*)",
+      "Bash(npx claude-flow*)",
+      "Bash(node .claude/*)",
+      "Bash(node .opencode/*)",
+      "mcp__claude-flow__:*"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./node_modules/**)",
+      "Read(./apps/*/node_modules/**)",
+      "Read(./.next/**)",
+      "Read(./apps/*/.next/**)",
+      "Read(./dist/**)",
+      "Read(./apps/*/dist/**)",
+      "Read(./ruvector.db)"
+    ]
+  },
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '=== Contexto al compactar ===' && echo \"Branch: $(git branch --show-current 2>/dev/null)\" && echo 'Modificados:' && git diff --name-only 2>/dev/null | head -8 && echo 'Staged:' && git diff --cached --name-only 2>/dev/null | head -5"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "sh -c 'exec node \"${CLAUDE_PROJECT_DIR:-.}/.claude/helpers/statusline.cjs\"'"
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true
+  }
+}

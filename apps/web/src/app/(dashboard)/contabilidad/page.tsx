@@ -108,7 +108,7 @@ export default function ContabilidadPage() {
 
   const onGuardarGasto = gastoForm.handleSubmit(async (data) => {
     try {
-      await crearGasto.mutateAsync({ ...data, fecha: new Date(data.fecha).toISOString() });
+      await crearGasto.mutateAsync({ ...data, fecha: new Date(data.fecha).toISOString() } as any);
       toast.success("Gasto registrado");
       setGastoOpen(false);
       gastoForm.reset();
@@ -126,7 +126,7 @@ export default function ContabilidadPage() {
 
   const onGuardarCuenta = cuentaForm.handleSubmit(async (data) => {
     try {
-      await crearCuenta.mutateAsync(data);
+      await crearCuenta.mutateAsync(data as any);
       toast.success("Cuenta creada");
       setCuentaOpen(false);
       cuentaForm.reset();

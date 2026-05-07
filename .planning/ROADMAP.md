@@ -24,14 +24,14 @@
 
 ### Phase 2: Fix Selección de Horas en Calendario
 **Goal**: Las horas seleccionadas en el calendario del admin se reflejan visualmente
-**Status**: pending
+**Status**: ✓ complete
 **Priority**: high
 **Requirements**: BUG-02
 
 **Success Criteria:**
-1. Al dar click en una franja horaria, visualmente se marca/selecciona
-2. La hora seleccionada se guarda correctamente en el form de la clase
-3. El calendario muestra las franjas creadas correctamente
+1. ✓ Al dar click y arrastrar en una franja horaria, visualmente se marca/selecciona
+2. ✓ La hora seleccionada se pasa correctamente al form de NuevaClaseDialog
+3. ✓ El calendario muestra las franjas creadas correctamente
 
 **Notes:**
 - FullCalendar en dashboard — revisar eventos `select` y callbacks

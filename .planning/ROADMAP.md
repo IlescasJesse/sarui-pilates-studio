@@ -7,11 +7,15 @@
 **Status**: pending
 **Priority**: critical
 **Requirements**: BUG-01
+**Plans**: 1 plan
 
 **Success Criteria:**
 1. Staff puede asignar un cliente a una clase desde el dashboard sin error 500
 2. Cliente puede reservar una clase desde el portal sin error 500
 3. Se identifica la causa raíz del error (endpoint, validación, o DB)
+
+**Plans:**
+- [ ] 01-01-PLAN.md — Fix error 500: agregar MERCADO_PAGO al enum, corregir null checks en dashboard y portal
 
 **Notes:**
 - Investigar logs del API para ver el stack trace del 500

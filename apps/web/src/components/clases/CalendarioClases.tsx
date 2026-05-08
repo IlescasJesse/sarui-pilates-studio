@@ -330,7 +330,7 @@ export function CalendarioClases() {
         <FullCalendarComponent
           initialView="timeGridWeek"
           locale="es"
-          timeZone="UTC"
+          timeZone="local"
           headerToolbar={{ left: "prev,next today", center: "title", right: "dayGridMonth,timeGridWeek,timeGridDay" }}
           buttonText={{ today: "Hoy", month: "Mes", week: "Semana", day: "Día" }}
           slotMinTime="06:45:00"

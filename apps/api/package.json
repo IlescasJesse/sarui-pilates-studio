@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "migrate": "prisma migrate dev",
-    "seed": "ts-node-dev --transpile-only src/database/seed.ts"
+    "seed": "ts-node-dev --transpile-only src/database/seed.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",

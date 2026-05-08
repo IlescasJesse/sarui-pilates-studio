@@ -13,6 +13,7 @@ import {
   BookOpen,
   UserCheck,
   Monitor,
+  HelpCircle,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
   { label: "Clases", href: "/clases", icon: CalendarDays },
   { label: "Reservaciones", href: "/reservaciones", icon: BookOpen },
   { label: "Instructores", href: "/instructores", icon: UserCheck },
+  { label: "Ayuda", href: "/ayuda", icon: HelpCircle },
   { label: "Kiosco", href: "/kiosk", icon: Monitor },
 ];
 

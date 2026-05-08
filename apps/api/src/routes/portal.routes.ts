@@ -509,6 +509,8 @@ const reservaSchema = z.object({
   pagarAhora: z.boolean(),
   // Requerido si pagarAhora = false
   portalWaConfirmed: z.boolean().optional(),
+  pagoParcial: z.boolean().optional(),
+  montoPagado: z.number().positive().optional(),
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -530,7 +532,7 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
       return;
     }
 
-    const { claseId, pagarAhora, portalWaConfirmed } = parse.data;
+    const { claseId, pagarAhora, portalWaConfirmed, pagoParcial, montoPagado } = parse.data;
 
     if (!pagarAhora && !portalWaConfirmed) {
       ApiError(res, 'WA_REQUIRED', 'Debes confirmar que ya contactaste al estudio por WhatsApp', 400);
@@ -545,6 +547,25 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
 
     if (!client) {
       ApiError(res, 'CLIENT_NOT_FOUND', 'Perfil de cliente no encontrado', 404);
+      return;
+    }
+
+    // Verificar membresías activas del cliente
+    const now = new Date();
+    const membresiasActivas = await prisma.membership.count({
+      where: {
+        clientId: client.id,
+        deletedAt: null,
+        status: 'ACTIVE',
+        expiresAt: { gt: now },
+        sessionsRemaining: { gt: 0 },
+      },
+    });
+    const tieneMembresias = membresiasActivas > 0;
+
+    // Sin membresías activas → solo permitir flujo con pago
+    if (!tieneMembresias && !pagarAhora) {
+      ApiError(res, 'MEMBERSHIP_REQUIRED', 'No tienes membresías activas. Debes pagar para reservar esta clase.', 400);
       return;
     }
 
@@ -606,11 +627,24 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
       });
 
       // 2. Crear preferencia de MercadoPago — precio de sesión única del paquete
-      const monto = Number(clase.tipoActividad?.paquetes?.[0]?.price ?? 0);
-      if (monto === 0) {
+      const montoCompleto = Number(clase.tipoActividad?.paquetes?.[0]?.price ?? 0);
+      if (montoCompleto === 0) {
         ApiError(res, 'INVALID_AMOUNT', 'Esta clase no tiene costo configurado', 400);
         return;
       }
+
+      const monto = pagoParcial && montoPagado ? montoPagado : montoCompleto;
+      const esParcial = pagoParcial && montoPagado && montoPagado < montoCompleto;
+
+      // Guardar nota de pago parcial en la reservación para que el webhook lo detecte
+      await prisma.reservation.update({
+        where: { id: reservacion.id },
+        data: {
+          notes: esParcial
+            ? `PAGO_PARCIAL:${montoPagado}/${montoCompleto}`
+            : null,
+        },
+      });
 
       const preference = await createPreference({
         reservationId: reservacion.id,

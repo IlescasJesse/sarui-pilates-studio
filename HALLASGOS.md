@@ -234,7 +234,7 @@
 - **Impacto:** `POST /api/v1/reservaciones` falla con 500: `Table 'sarui_studio.Class' doesn't exist`
 - **Severidad:** 🔴 Critical
 - **Fix:** Se reemplazó `` `Class` `` por `` `classes` `` en los 3 `$executeRaw`
-- **Commit:** _(pendiente)_
+- **Commit:** `bb91886`
 
 ### H-12: Migración faltante — `memberships.mercadoPagoPaymentId`
 - **Archivos:** `schema.prisma:323`, `routes/portal.routes.ts`, `routes/webhook.routes.ts`
@@ -242,4 +242,20 @@
 - **Impacto:** `GET /api/v1/membresias` falla con 500: `Column 'memberships.mercadoPagoPaymentId' doesn't exist`
 - **Severidad:** 🔴 Critical
 - **Fix:** Se creó migración `20260508000000_add_memberships_mp_payment_id` con `ALTER TABLE memberships ADD COLUMN mercadoPagoPaymentId`
-- **Commit:** _(pendiente)_
+- **Commit:** `bb91886`
+
+---
+
+## Mejoras Portal (2026-05-08)
+
+### F-01: Validación de membresías en portal + pago parcial
+- **Descripción:** Al reservar desde el portal, si el cliente no tiene membresías activas se oculta la opción "Enviar solicitud sin pago" y se fuerza el pago. Se agregó opción de pago parcial con monto personalizado.
+- **Archivos backend:**
+  - `portal.routes.ts` — validación de membresías activas antes de crear reservación; soporte para `pagoParcial`/`montoPagado` en schema; nota `PAGO_PARCIAL:monto/completo` en `reservation.notes`
+  - `webhook.routes.ts` — detecta `PAGO_PARCIAL` en notes y marca `isPartial: true` en el Payment
+  - `schema.prisma` — `Payment.isPartial` Boolean @default(false)
+  - Migración: `20260508210000_add_payment_is_partial`
+- **Archivos frontend:**
+  - `agendar/[claseId]/page.tsx` — usa `useMisMembresias()` para ocultar "Sin pago" si no hay membresías; muestra costo en card "Pagar ahora"; toggle + input de pago parcial en resumen
+  - `usePortal.ts` — tipado extendido con `pagoParcial`, `montoPagado`
+- **Commit:** _(este commit)_

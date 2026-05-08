@@ -134,6 +134,8 @@ router.post('/mercadopago', async (req: Request, res: Response, next: NextFuncti
           include: { class: true },
         });
 
+        const esParcial = reservacion.notes?.startsWith('PAGO_PARCIAL:') ?? false;
+
         await tx.payment.upsert({
           where: { reservationId },
           create: {
@@ -143,11 +145,13 @@ router.post('/mercadopago', async (req: Request, res: Response, next: NextFuncti
             status: 'PAID',
             reference: String(data.id),
             paidAt: new Date(),
+            isPartial: esParcial,
           },
           update: {
             status: 'PAID',
             paidAt: new Date(),
             reference: String(data.id),
+            isPartial: esParcial,
           },
         });
 

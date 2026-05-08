@@ -471,6 +471,8 @@ model Payment {
   method         PaymentMethod
   status         PaymentStatus @default(PENDING)
 
+  isPartial      Boolean       @default(false)
+
   reference      String?       // folio, número de transacción
   notes          String?
 

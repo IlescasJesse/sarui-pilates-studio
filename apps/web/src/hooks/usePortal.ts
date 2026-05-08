@@ -156,10 +156,17 @@ export function useCrearReservaPortal() {
       claseId: string;
       pagarAhora: boolean;
       portalWaConfirmed?: boolean;
+      pagoParcial?: boolean;
+      montoPagado?: number;
     }) => {
+      const payload: Record<string, unknown> = { claseId: data.claseId, pagarAhora: data.pagarAhora };
+      if (data.portalWaConfirmed !== undefined) payload.portalWaConfirmed = data.portalWaConfirmed;
+      if (data.pagoParcial !== undefined) payload.pagoParcial = data.pagoParcial;
+      if (data.montoPagado !== undefined) payload.montoPagado = data.montoPagado;
+
       const res = await portalAuthClient.post<{ success: boolean; data: ReservaPortalResponse }>(
         "/portal/reservaciones",
-        data
+        payload
       );
       return res.data.data;
     },

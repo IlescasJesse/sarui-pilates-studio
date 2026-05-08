@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useClasePortal, useCrearReservaPortal } from "@/hooks/usePortal";
+import { useClasePortal, useCrearReservaPortal, useMisMembresias } from "@/hooks/usePortal";
 import { portalAuthClient } from "@/lib/portal-client";
 import { downloadQRCard } from "@/lib/qr-card";
 import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
@@ -19,6 +19,8 @@ import {
   AlertCircle,
   ChevronRight,
   Download,
+  Package,
+  Percent,
 } from "lucide-react";
 
 const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY ?? "";
@@ -43,6 +45,7 @@ export default function AgendarPage() {
 
   const { data: clase, isLoading } = useClasePortal(claseId);
   const crearReserva = useCrearReservaPortal();
+  const { data: membresias, isLoading: loadingMembresias } = useMisMembresias();
 
   const [modo, setModo] = useState<Modo>("elegir");
   const [waConfirmed, setWaConfirmed] = useState(false);
@@ -52,6 +55,8 @@ export default function AgendarPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [qrData, setQrData] = useState<{ qrImage: string; name: string } | null>(null);
   const [descargandoQR, setDescargandoQR] = useState(false);
+  const [pagoParcial, setPagoParcial] = useState(false);
+  const [montoPagadoStr, setMontoPagadoStr] = useState("");
 
   useEffect(() => {
     if (MP_PUBLIC_KEY) initMercadoPago(MP_PUBLIC_KEY, { locale: "es-MX" });
@@ -85,7 +90,13 @@ export default function AgendarPage() {
   async function handleConfirmarPago() {
     setErrorMsg(null);
     try {
-      const result = await crearReserva.mutateAsync({ claseId, pagarAhora: true });
+      const monto = montoPagadoStr ? Number(montoPagadoStr) : undefined;
+      const result = await crearReserva.mutateAsync({
+        claseId,
+        pagarAhora: true,
+        pagoParcial,
+        montoPagado: pagoParcial && monto ? monto : undefined,
+      });
       if (result.preferenceId) {
         setPreferenceId(result.preferenceId);
         setModo("pago");
@@ -128,7 +139,7 @@ export default function AgendarPage() {
     }
   }
 
-  if (isLoading || isAuthed === null) {
+  if (isLoading || loadingMembresias || isAuthed === null) {
     return (
       <div className="flex items-center justify-center py-20 gap-2 text-[#254F40]/50">
         <Loader2 className="w-5 h-5 animate-spin" />
@@ -150,6 +161,7 @@ export default function AgendarPage() {
 
   const color = clase.tipoActividad?.color ?? "#254F40";
   const monto = Number(clase.costo ?? 0);
+  const tieneMembresias = (membresias?.length ?? 0) > 0;
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -238,33 +250,40 @@ export default function AgendarPage() {
               <p className="text-xs opacity-70 mt-0.5">
                 Paga con tarjeta o MercadoPago. Tu lugar queda confirmado de inmediato.
               </p>
+              {monto > 0 && (
+                <p className="text-sm font-bold mt-2 text-[#F6FFB5]">
+                  ${monto.toLocaleString("es-MX")} MXN
+                </p>
+              )}
             </div>
             <ChevronRight className="w-4 h-4 mt-1 opacity-60" />
           </button>
 
-          {/* Sin pago */}
-          <button
-            onClick={() => {
-              if (!isAuthed) {
-                router.push(`/portal/login?redirect=/portal/agendar/${claseId}`);
-                return;
-              }
-              setErrorMsg(null);
-              setModo("solicitud");
-            }}
-            className="w-full flex items-start gap-4 p-4 bg-white border-2 border-[#254F40]/20 text-[#254F40] rounded-2xl hover:border-[#254F40]/40 transition-colors text-left"
-          >
-            <div className="bg-[#254F40]/10 rounded-xl p-2.5 mt-0.5">
-              <MessageCircle className="w-5 h-5" />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold">Enviar solicitud (sin pago)</p>
-              <p className="text-xs text-[#254F40]/60 mt-0.5">
-                Necesitas haber contactado previamente al estudio por WhatsApp.
-              </p>
-            </div>
-            <ChevronRight className="w-4 h-4 mt-1 opacity-40" />
-          </button>
+          {/* Sin pago — solo visible si tiene membresías activas */}
+          {tieneMembresias && (
+            <button
+              onClick={() => {
+                if (!isAuthed) {
+                  router.push(`/portal/login?redirect=/portal/agendar/${claseId}`);
+                  return;
+                }
+                setErrorMsg(null);
+                setModo("solicitud");
+              }}
+              className="w-full flex items-start gap-4 p-4 bg-white border-2 border-[#254F40]/20 text-[#254F40] rounded-2xl hover:border-[#254F40]/40 transition-colors text-left"
+            >
+              <div className="bg-[#254F40]/10 rounded-xl p-2.5 mt-0.5">
+                <MessageCircle className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold">Enviar solicitud (sin pago)</p>
+                <p className="text-xs text-[#254F40]/60 mt-0.5">
+                  Necesitas haber contactado previamente al estudio por WhatsApp.
+                </p>
+              </div>
+              <ChevronRight className="w-4 h-4 mt-1 opacity-40" />
+            </button>
+          )}
         </div>
       )}
 
@@ -305,11 +324,54 @@ export default function AgendarPage() {
 
             {/* Total */}
             <div className="flex justify-between items-center pt-4 border-t border-[#254F40]/10">
-              <span className="font-semibold text-[#254F40]">Total a pagar</span>
+              <span className="font-semibold text-[#254F40]">Total</span>
               <span className="text-2xl font-bold text-[#254F40]">
                 ${monto.toLocaleString("es-MX")}{" "}
                 <span className="text-sm font-normal text-[#254F40]/50">MXN</span>
               </span>
+            </div>
+
+            {/* Pago parcial */}
+            <div className="border-t border-[#254F40]/10 pt-4">
+              <label className="flex items-center gap-2.5 cursor-pointer group mb-3">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={pagoParcial}
+                    onChange={(e) => setPagoParcial(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-5 h-5 rounded border-2 border-[#254F40]/30 peer-checked:bg-[#254F40] peer-checked:border-[#254F40] transition-colors flex items-center justify-center">
+                    {pagoParcial && (
+                      <Percent className="w-3 h-3 text-[#F6FFB5]" />
+                    )}
+                  </div>
+                </div>
+                <span className="text-sm text-[#254F40]/80">Pagar parcialmente</span>
+              </label>
+
+              {pagoParcial && (
+                <div className="bg-[#254F40]/5 rounded-xl p-4 space-y-3">
+                  <p className="text-xs text-[#254F40]/60">
+                    Ingresa el monto que deseas pagar hoy. El resto se registrará como saldo pendiente.
+                  </p>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#254F40]/60 font-medium">$</span>
+                    <input
+                      type="number"
+                      value={montoPagadoStr}
+                      onChange={(e) => setMontoPagadoStr(e.target.value)}
+                      placeholder={monto.toLocaleString("es-MX")}
+                      min={1}
+                      max={monto}
+                      className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-[#254F40]/20 text-sm text-[#254F40] bg-white focus:outline-none focus:ring-2 focus:ring-[#254F40]/30"
+                    />
+                  </div>
+                  <p className="text-xs text-[#254F40]/50">
+                    Monto completo: <span className="font-medium">${monto.toLocaleString("es-MX")} MXN</span>
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Info método de pago */}
@@ -330,7 +392,7 @@ export default function AgendarPage() {
             </button>
             <button
               onClick={handleConfirmarPago}
-              disabled={crearReserva.isPending}
+              disabled={crearReserva.isPending || (pagoParcial && !montoPagadoStr)}
               className="flex-1 py-2.5 rounded-xl bg-[#254F40] text-[#F6FFB5] text-sm font-semibold hover:bg-[#254F40]/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {crearReserva.isPending && <Loader2 className="w-4 h-4 animate-spin" />}

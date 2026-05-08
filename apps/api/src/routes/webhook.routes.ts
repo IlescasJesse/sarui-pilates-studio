@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { createHmac } from 'crypto';
 import { prisma } from '../config/database';
 import { getPayment } from '../services/mercadopago.service';
-import { PaymentMethod } from '@prisma/client';
+import { PaymentMethod, Prisma } from '@prisma/client';
 import { ApiSuccess } from '../utils/response';
 import { env } from '../config/env';
 
@@ -110,6 +110,8 @@ router.post('/mercadopago', async (req: Request, res: Response, next: NextFuncti
                 paidAt: now,
               },
             });
+
+            await autoCreateIngreso(tx, membership.id, Number(payment.transaction_amount ?? pkg.price), `Membresía ${pkg.name} - MP`, now);
           });
         }
       }
@@ -157,16 +159,34 @@ router.post('/mercadopago', async (req: Request, res: Response, next: NextFuncti
       });
 
       if (reservacion && reservacion.status === 'PENDING_APPROVAL') {
-        await prisma.$transaction([
-          prisma.reservation.update({
+        await prisma.$transaction(async (tx) => {
+          await tx.reservation.update({
             where: { id: reservationId },
             data: { status: 'CANCELLED', cancelledAt: new Date() },
-          }),
-          prisma.class.update({
+          });
+
+          await tx.class.update({
             where: { id: reservacion.classId },
             data: { spotsBooked: { decrement: 1 } },
-          }),
-        ]);
+          });
+
+          if (reservacion.membershipId) {
+            const membership = await tx.membership.findUnique({
+              where: { id: reservacion.membershipId },
+              select: { sessionsRemaining: true, sessionsUsed: true },
+            });
+            if (membership) {
+              await tx.membership.update({
+                where: { id: reservacion.membershipId },
+                data: {
+                  sessionsRemaining: { increment: 1 },
+                  sessionsUsed: { decrement: 1 },
+                  status: 'ACTIVE',
+                },
+              });
+            }
+          }
+        });
       }
     }
 
@@ -175,5 +195,41 @@ router.post('/mercadopago', async (req: Request, res: Response, next: NextFuncti
     next(error);
   }
 });
+
+async function autoCreateIngreso(
+  tx: Prisma.TransactionClient,
+  membershipId: string,
+  monto: number,
+  concepto: string,
+  fecha: Date
+): Promise<void> {
+  const cuenta = await tx.cuentaContable.upsert({
+    where: { codigo: '401-ING' },
+    create: {
+      codigo: '401-ING',
+      nombre: 'Ingresos por Membresías MP',
+      tipo: 'INGRESO',
+    },
+    update: {},
+  });
+
+  const admin = await tx.user.findFirst({ where: { role: 'ADMIN' }, select: { id: true } });
+  if (!admin) {
+    console.warn('[webhook] No se encontró admin para crear Ingreso automático');
+    return;
+  }
+
+  await tx.ingreso.create({
+    data: {
+      cuentaContableId: cuenta.id,
+      concepto,
+      monto,
+      fecha,
+      origen: 'PORTAL_MERCADOPAGO',
+      referenciaId: membershipId,
+      creadoPorId: admin.id,
+    },
+  });
+}
 
 export default router;

@@ -261,9 +261,43 @@ router.delete(
   requireRole('ADMIN'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await prisma.reservation.update({
+      const reservacion = await prisma.reservation.findUnique({
         where: { id: req.params.id },
-        data: { status: 'CANCELLED', cancelledAt: new Date() },
+        select: { id: true, membershipId: true, classId: true },
+      });
+
+      if (!reservacion) {
+        ApiError(res, 'NOT_FOUND', 'Reservación no encontrada', 404);
+        return;
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.reservation.update({
+          where: { id: req.params.id },
+          data: { status: 'CANCELLED', cancelledAt: new Date() },
+        });
+
+        await tx.class.update({
+          where: { id: reservacion.classId },
+          data: { spotsBooked: { decrement: 1 } },
+        });
+
+        if (reservacion.membershipId) {
+          const membership = await tx.membership.findUnique({
+            where: { id: reservacion.membershipId },
+            select: { sessionsRemaining: true, sessionsUsed: true },
+          });
+          if (membership) {
+            await tx.membership.update({
+              where: { id: reservacion.membershipId },
+              data: {
+                sessionsRemaining: { increment: 1 },
+                sessionsUsed: { decrement: 1 },
+                status: 'ACTIVE',
+              },
+            });
+          }
+        }
       });
 
       ApiSuccess(res, { message: 'Reservación cancelada' });
@@ -346,6 +380,24 @@ router.patch(
           where: { id: reservacion.classId },
           data: { spotsBooked: { decrement: 1 } },
         });
+
+        // Restaurar sesión si usó membresía
+        if (reservacion.membershipId) {
+          const membership = await tx.membership.findUnique({
+            where: { id: reservacion.membershipId },
+            select: { sessionsRemaining: true, sessionsUsed: true },
+          });
+          if (membership) {
+            await tx.membership.update({
+              where: { id: reservacion.membershipId },
+              data: {
+                sessionsRemaining: { increment: 1 },
+                sessionsUsed: { decrement: 1 },
+                status: 'ACTIVE',
+              },
+            });
+          }
+        }
 
         return r;
       });

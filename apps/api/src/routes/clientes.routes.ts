@@ -103,7 +103,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     const qrCode = uuidv4();
     const { email, password, pin, ...clientData } = parseResult.data;
     const hashedPassword = await hashPassword(password ?? Math.random().toString(36).slice(2));
-    const hashedPin = await hashPassword(pin ?? '0000');
+    const finalPin = pin ?? String(Math.floor(1000 + Math.random() * 9000));
+    const hashedPin = await hashPassword(finalPin);
 
     const cliente = await prisma.user.create({
       data: {

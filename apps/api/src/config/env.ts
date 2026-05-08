@@ -19,15 +19,7 @@ const envSchema = z.object({
   API_URL: z.string().url().default('http://localhost:4000'),
   MP_ACCESS_TOKEN: z.string().min(1, 'MP_ACCESS_TOKEN is required'),
   MP_PUBLIC_KEY: z.string().min(1, 'MP_PUBLIC_KEY is required'),
-  MP_WEBHOOK_SECRET: z.string().default(''),
-}).superRefine((data, ctx) => {
-  if (data.NODE_ENV === 'production' && !data.MP_WEBHOOK_SECRET) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['MP_WEBHOOK_SECRET'],
-      message: 'MP_WEBHOOK_SECRET is required in production — get it from the MercadoPago panel',
-    });
-  }
+  MP_WEBHOOK_SECRET: z.string().min(1, 'MP_WEBHOOK_SECRET is required — get it from the MercadoPago panel'),
 });
 
 const parsed = envSchema.safeParse(process.env);

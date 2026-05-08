@@ -6,12 +6,24 @@ import { ApiSuccess, ApiError } from '../utils/response';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { requireRole } from '../middlewares/role.middleware';
 import { createPreference, getPayment, createPackagePreference } from '../services/mercadopago.service';
-import { PaymentMethod } from '@prisma/client';
+import { PaymentMethod, Prisma } from '@prisma/client';
 import { hashPassword } from '../utils/bcrypt';
 import QRCode from 'qrcode';
 import { z } from 'zod';
+import rateLimit from 'express-rate-limit';
 
 const router = Router();
+
+const portalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Demasiadas solicitudes. Intenta de nuevo en un momento.' },
+  },
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/v1/portal/clases  — público, sin auth
@@ -115,6 +127,9 @@ router.get('/clases/:id', async (req: Request, res: Response, next: NextFunction
   }
 });
 
+// ── Rate limiter para rutas públicas ──────────────────────────
+router.use(portalLimiter);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/v1/portal/solicitar-cuenta  — público, sin auth
 // ─────────────────────────────────────────────────────────────────────────────
@@ -199,7 +214,8 @@ router.patch('/solicitudes/:id', authMiddleware, requireRole('ADMIN'), async (re
       const { v4: uuidv4 } = await import('uuid');
       const tempPassword = Math.random().toString(36).slice(2, 10);
       const hashedPassword = await hashPassword(tempPassword);
-      const hashedPin = await hashPassword('0000');
+      const pin = String(Math.floor(1000 + Math.random() * 9000));
+      const hashedPin = await hashPassword(pin);
       const qrCode = uuidv4();
 
       const [updatedSolicitud, cliente] = await prisma.$transaction([
@@ -232,7 +248,7 @@ router.patch('/solicitudes/:id', authMiddleware, requireRole('ADMIN'), async (re
         }),
       ]);
 
-      ApiSuccess(res, { solicitud: updatedSolicitud, cliente, tempPassword });
+      ApiSuccess(res, { solicitud: updatedSolicitud, cliente, tempPassword, pin });
       return;
     }
 
@@ -314,7 +330,6 @@ router.post('/buscar-cliente', async (req: Request, res: Response, next: NextFun
     ApiSuccess(res, {
       status: 'found',
       nombre: `${user.client.firstName} ${user.client.lastName}`,
-      qrCode: user.client.qrCode,
       provisionalToken,
       memberships: user.client.memberships.map((m) => ({
         id: m.id,
@@ -430,6 +445,7 @@ router.post('/reservar-provisional', async (req: Request, res: Response, next: N
         data: {
           sessionsUsed:      { increment: 1 },
           sessionsRemaining: { decrement: 1 },
+          status: membresia.sessionsRemaining - 1 <= 0 ? 'EXHAUSTED' : 'ACTIVE',
         },
       }),
     ]);
@@ -661,6 +677,91 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/v1/portal/reservaciones/:id  — cliente autenticado
+// Cancela una reservación propia respetando la política de 5 horas
+// ─────────────────────────────────────────────────────────────────────────────
+router.delete('/reservaciones/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const client = await prisma.client.findUnique({
+      where: { userId: req.user!.id, deletedAt: null },
+    });
+
+    if (!client) {
+      ApiError(res, 'CLIENT_NOT_FOUND', 'Perfil de cliente no encontrado', 404);
+      return;
+    }
+
+    const reservacion = await prisma.reservation.findUnique({
+      where: { id: req.params.id },
+      include: { class: { select: { startAt: true } } },
+    });
+
+    if (!reservacion || reservacion.deletedAt) {
+      ApiError(res, 'NOT_FOUND', 'Reservación no encontrada', 404);
+      return;
+    }
+
+    if (reservacion.clientId !== client.id) {
+      ApiError(res, 'FORBIDDEN', 'Esta reservación no te pertenece', 403);
+      return;
+    }
+
+    if (reservacion.status === 'CANCELLED') {
+      ApiError(res, 'ALREADY_CANCELLED', 'Esta reservación ya está cancelada', 400);
+      return;
+    }
+
+    // Política de cancelación: mínimo 5 horas antes
+    const ahora = new Date();
+    const diffMs = reservacion.class.startAt.getTime() - ahora.getTime();
+    const diffHoras = diffMs / (1000 * 60 * 60);
+    const esATiempo = diffHoras >= 5;
+
+    if (!esATiempo) {
+      ApiError(res, 'TOO_LATE', 'Solo puedes cancelar con al menos 5 horas de anticipación', 400);
+      return;
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.reservation.update({
+        where: { id: req.params.id },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: ahora,
+          cancelledOnTime: true,
+        },
+      });
+
+      await tx.class.update({
+        where: { id: reservacion.classId },
+        data: { spotsBooked: { decrement: 1 } },
+      });
+
+      if (reservacion.membershipId) {
+        const membership = await tx.membership.findUnique({
+          where: { id: reservacion.membershipId },
+          select: { sessionsRemaining: true, sessionsUsed: true },
+        });
+        if (membership) {
+          await tx.membership.update({
+            where: { id: reservacion.membershipId },
+            data: {
+              sessionsRemaining: { increment: 1 },
+              sessionsUsed: { decrement: 1 },
+              status: 'ACTIVE',
+            },
+          });
+        }
+      }
+    });
+
+    ApiSuccess(res, { mensaje: 'Reservación cancelada exitosamente' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/v1/portal/mis-agendas  — cliente autenticado
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/mis-agendas', async (req: Request, res: Response, next: NextFunction) => {
@@ -853,6 +954,8 @@ router.post('/verificar-pago-paquete', async (req: Request, res: Response, next:
               paidAt: nowDate,
             },
           });
+
+          await autoCreateIngreso(tx, membership.id, Number(payment.transaction_amount ?? pkg.price), `Membresía ${pkg.name} - MP`, nowDate, req.user!.id);
         });
       }
     }
@@ -943,5 +1046,36 @@ router.post('/verificar-pago', async (req: Request, res: Response, next: NextFun
     next(error);
   }
 });
+
+async function autoCreateIngreso(
+  tx: Prisma.TransactionClient,
+  membershipId: string,
+  monto: number,
+  concepto: string,
+  fecha: Date,
+  creadoPorId: string
+): Promise<void> {
+  const cuenta = await tx.cuentaContable.upsert({
+    where: { codigo: '401-ING' },
+    create: {
+      codigo: '401-ING',
+      nombre: 'Ingresos por Membresías MP',
+      tipo: 'INGRESO',
+    },
+    update: {},
+  });
+
+  await tx.ingreso.create({
+    data: {
+      cuentaContableId: cuenta.id,
+      concepto,
+      monto,
+      fecha,
+      origen: 'PORTAL_MERCADOPAGO',
+      referenciaId: membershipId,
+      creadoPorId,
+    },
+  });
+}
 
 export default router;

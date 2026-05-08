@@ -64,24 +64,113 @@
 
 ### Phase 4: Audit & Reporte de Hallazgos
 **Goal**: Investigar y documentar otros bugs y áreas grises encontrados durante la ejecución
-**Status**: pending
+**Status**: ✓ complete
 **Priority**: medium
 **Requirements**: AUDIT-01
+**Plans**: 1 plan
 
 **Success Criteria:**
-1. Documento con hallazgos entregado al usuario
-2. Cada hallazgo clasificado por severidad (critical, high, medium, low)
-3. Recomendaciones de trabajo futuro incluidas
+1. ✓ Documento con hallazgos entregado al usuario (HALLASGOS.md)
+2. ✓ Cada hallazgo clasificado por severidad (critical, high, medium, low)
+3. ✓ Recomendaciones de trabajo futuro incluidas
+
+**Plans:**
+- [x] 04-01-PLAN.md — Audit: verificar CONCERNS.md, revisar fases 1-3, escribir HALLASGOS.md, crear GitHub issues
 
 **Notes:**
-- Ya conocidos: tokens en localStorage, PIN full table scan, portal layout bug, tipos duplicados
-- Buscar adicionalmente: validaciones faltantes, errores silenciosos, UX inconsistencies
+- 21 hallazgos documentados (3 critical, 7 high, 5 medium, 6 low)
+- 10 GitHub issues creados para Critical + High findings
+- 2 fixes ya aplicados detectados (MERCADO_PAGO enum, verificar-pago hardcoded)
+
+---
+
+## v0.3.1 — Hotfixes Post-Auditoría
+
+### Phase 5: Fix Sesiones y Membresías
+**Goal**: Corregir consistencia de sessionsRemaining y status EXHAUSTED en flujo portal
+**Status**: ✓ complete
+**Priority**: critical
+**Requirements**: H-01, H-02
+**Plans**: 1 plan
+
+**Success Criteria:**
+1. ✓ Cancelación de reservación restaura sessionsRemaining y decrementa sessionsUsed
+2. ✓ Portal setea MEMBERSHIP_STATUS a EXHAUSTED cuando sessionsRemaining llega a 0
+
+**Plans:**
+- [x] 05-01-PLAN.md — EXHAUSTED en portal + sesiones restauradas en DELETE, declinar, webhook
+
+**Notes:**
+- 3 cancel paths fixed: DELETE admin, PATCH declinar, webhook rejected
+- portal.routes.ts, reservaciones.routes.ts, webhook.routes.ts modificados
+
+### Phase 6: Fix Contabilidad MP
+**Goal**: Auto-crear registro Ingreso cuando un pago MP es aprobado
+**Status**: ✓ complete
+**Priority**: critical
+**Requirements**: H-03
+**Plans**: 1 plan
+
+**Success Criteria:**
+1. ✓ Webhook de MP crea Ingreso al aprobar pago de paquete
+2. ✓ Fallback verificar-pago-paquete también crea Ingreso
+3. ✓ El módulo contable refleja ingresos de MP automáticamente
+
+**Plans:**
+- [x] 06-01-PLAN.md — Ingreso auto-creado en webhook y portal fallback
+
+### Phase 7: Fix Seguridad Cuentas
+**Goal**: Eliminar PIN default '0000' y proteger tempPassword
+**Status**: ✓ complete
+**Priority**: high
+**Requirements**: H-04, H-05
+**Plans**: 1 plan
+
+**Success Criteria:**
+1. ✓ PIN aleatorio de 4 dígitos generado en creación de cuenta
+2. ✓ PIN incluido en respuesta de aprobación junto a tempPassword
+3. ✓ tempPassword sigue expuesta (requiere email service — fuera de alcance)
+
+**Plans:**
+- [x] 07-01-PLAN.md — PIN aleatorio en portal.routes.ts y clientes.routes.ts
+
+### Phase 8: Fix Seguridad Portal
+**Goal**: Mitigar vulnerabilidades de seguridad en portal (JWT, QR leak, webhook, rate limit)
+**Status**: ✓ complete
+**Priority**: high
+**Requirements**: H-06, H-07, H-08, H-09
+**Plans**: 1 plan
+
+**Success Criteria:**
+1. ⚡ JWT en localStorage mitigado (short TTL + rate limiting — refactor completo pendiente)
+2. ✓ qrCode removido de respuesta buscar-cliente
+3. ✓ Validación de firma webhook ahora obligatoria en todos los entornos
+4. ✓ Rate limiting aplicado a rutas públicas del portal (20 req/min)
+
+**Plans:**
+- [x] 08-01-PLAN.md — QR leak, webhook, rate limit, JWT mitigación
+
+### Phase 9: Fix Cancelación Portal
+**Goal**: Implementar endpoint de cancelación de reservación para clientes
+**Status**: ✓ complete
+**Priority**: high
+**Requirements**: H-10
+**Plans**: 1 plan
+
+**Success Criteria:**
+1. ✓ DELETE /api/v1/portal/reservaciones/:id implementado
+2. ✓ Valida política de cancelación de 5 horas
+3. ✓ Decrementa spotsBooked correctamente
+4. ✓ Restaura sesiones si la reservación usó membresía
+
+**Plans:**
+- [x] 09-01-PLAN.md — DELETE /portal/reservaciones/:id con validaciones
 
 ---
 
 ## Future: v0.4 — Área Contable
 
-### Phase 5: Dashboard Contable
+### Phase 10: Dashboard Contable
 **Goal**: Vista del área contable con resumen financiero, gráficos y reportes
 **Status**: deferred
 **Requirements**: ACCT-01, ACCT-02, ACCT-03, ACCT-04

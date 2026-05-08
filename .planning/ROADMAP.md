@@ -40,7 +40,7 @@
 
 ### Phase 3: Página de Ayuda en Dashboard
 **Goal**: Crear sección de ayuda/soporte integrada en el dashboard con manuales para staff y clientes
-**Status**: pending
+**Status**: ✓ complete
 **Priority**: medium
 **Requirements**: HELP-01, HELP-02, HELP-03
 **Plans**: 3 plans
@@ -53,9 +53,9 @@
 5. Contenido con los colores de marca `#254F40`, `#F6FFB5`, `#FDFFEC`
 
 **Plans:**
-- [ ] 03-01-PLAN.md — Add "Ayuda" link to sidebar, install Tabs and Accordion components
-- [ ] 03-02-PLAN.md — Create help page with Tabs, ManualAdmin and ManualCliente components
-- [ ] 03-03-PLAN.md — Add search/filter functionality to help page
+- [x] 03-01-PLAN.md — Add "Ayuda" link to sidebar, install Tabs and Accordion components
+- [x] 03-02-PLAN.md — Create help page with Tabs, ManualAdmin and ManualCliente components
+- [x] 03-03-PLAN.md — Add search/filter functionality to help page
 
 **Notes:**
 - Componentes React (.tsx) usando shadcn/ui (Card, Accordion, Tabs) — no MDX

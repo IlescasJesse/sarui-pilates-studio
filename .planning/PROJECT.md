@@ -26,9 +26,9 @@ Los clientes pueden reservar clases y el staff puede gestionarlas sin errores �
 
 - [ ] **BUG-01**: Error 500 al asignar un cliente a una clase (ocurre en dashboard admin y portal)
 - [ ] **BUG-02**: Al seleccionar horas en el calendario del admin, las horas no se reflejan visualmente
-- [ ] **HELP-01**: Página de ayuda/soporte integrada en el dashboard admin
-- [ ] **HELP-02**: Manual de uso para admin/staff dentro de la página de ayuda
-- [ ] **HELP-03**: Manual de uso para portal de clientes dentro de la página de ayuda
+- [x] **HELP-01**: Página de ayuda/soporte integrada en el dashboard admin
+- [x] **HELP-02**: Manual de uso para admin/staff dentro de la página de ayuda
+- [x] **HELP-03**: Manual de uso para portal de clientes dentro de la página de ayuda
 - [ ] **AUDIT-01**: Investigar y reportar otros bugs o áreas grises encontrados durante el proceso
 
 ### Deferred to v2

@@ -1,11 +1,21 @@
 "use client";
+import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ManualAdmin } from "@/components/ayuda/ManualAdmin";
-import { ManualCliente } from "@/components/ayuda/ManualCliente";
-import { HelpCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ManualAdmin, adminSections } from "@/components/ayuda/ManualAdmin";
+import { ManualCliente, clienteSections } from "@/components/ayuda/ManualCliente";
+import { useManualFilter } from "@/components/ayuda/useManualFilter";
+import { HelpCircle, Search } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function AyudaPage() {
+  const [activeTab, setActiveTab] = useState("admin");
+  const adminFilter = useManualFilter(adminSections);
+  const clienteFilter = useManualFilter(clienteSections);
+
+  const currentFilter =
+    activeTab === "admin" ? adminFilter : clienteFilter;
+
   return (
     <div className="max-w-5xl mx-auto">
       <motion.div
@@ -24,7 +34,21 @@ export default function AyudaPage() {
         </p>
       </motion.div>
 
-      <Tabs defaultValue="admin" className="w-full">
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#749390]" />
+        <Input
+          placeholder="Buscar en el manual..."
+          className="pl-10 border-[#254F40]/20 focus-visible:ring-[#254F40]/30"
+          value={currentFilter.filterText}
+          onChange={(e) => currentFilter.setFilterText(e.target.value)}
+        />
+      </div>
+
+      <Tabs
+        defaultValue="admin"
+        className="w-full"
+        onValueChange={(v) => setActiveTab(v)}
+      >
         <TabsList className="grid w-full max-w-md grid-cols-2 mb-6 bg-[#FDFFEC] border border-[#254F40]/10">
           <TabsTrigger
             value="admin"
@@ -40,10 +64,10 @@ export default function AyudaPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="admin">
-          <ManualAdmin />
+          <ManualAdmin sections={adminFilter.filteredSections} />
         </TabsContent>
         <TabsContent value="cliente">
-          <ManualCliente />
+          <ManualCliente sections={clienteFilter.filteredSections} />
         </TabsContent>
       </Tabs>
     </div>

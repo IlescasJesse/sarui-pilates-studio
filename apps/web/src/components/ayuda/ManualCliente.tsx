@@ -8,8 +8,9 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { CalendarDays, CreditCard, XCircle, User } from "lucide-react";
 import { motion } from "framer-motion";
+import { ManualSection } from "./useManualFilter";
 
-const sections = [
+export const clienteSections: ManualSection[] = [
   {
     icon: CalendarDays,
     title: "Cómo Reservar una Clase",
@@ -36,7 +37,7 @@ const sections = [
   },
 ];
 
-export function ManualCliente() {
+export function ManualCliente({ sections }: { sections: ManualSection[] }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -50,21 +51,27 @@ export function ManualCliente() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Accordion type="single" collapsible className="w-full">
-            {sections.map((section, idx) => (
-              <AccordionItem key={idx} value={`cliente-${idx}`}>
-                <AccordionTrigger className="text-[#254F40] hover:text-[#254F40]/80">
-                  <div className="flex items-center gap-2">
-                    <section.icon className="w-5 h-5" />
-                    {section.title}
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="text-[#749390] leading-relaxed">
-                  {section.content}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+          {sections.length === 0 ? (
+            <p className="text-[#749390] text-center py-8">
+              No se encontraron resultados para tu búsqueda.
+            </p>
+          ) : (
+            <Accordion type="single" collapsible className="w-full">
+              {sections.map((section, idx) => (
+                <AccordionItem key={idx} value={`cliente-${idx}`}>
+                  <AccordionTrigger className="text-[#254F40] hover:text-[#254F40]/80">
+                    <div className="flex items-center gap-2">
+                      <section.icon className="w-5 h-5" />
+                      {section.title}
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="text-[#749390] leading-relaxed">
+                    {section.content}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          )}
         </CardContent>
       </Card>
     </motion.div>

@@ -587,7 +587,7 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
       const reservacion = await prisma.$transaction(async (tx) => {
         // UPDATE atómico: solo incrementa si hay lugar — previene race condition
         const updated = await tx.$executeRaw`
-          UPDATE \`Class\` SET spotsBooked = spotsBooked + 1
+          UPDATE \`classes\` SET spotsBooked = spotsBooked + 1
           WHERE id = ${claseId} AND spotsBooked < capacity AND deletedAt IS NULL
         `;
         if (updated === 0) throw Object.assign(new Error('CLASS_FULL'), { code: 'CLASS_FULL' });
@@ -638,7 +638,7 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
       // ── Flujo sin pago (solicitud) ────────────────────────────────────────
       const reservacion = await prisma.$transaction(async (tx) => {
         const updated = await tx.$executeRaw`
-          UPDATE \`Class\` SET spotsBooked = spotsBooked + 1
+          UPDATE \`classes\` SET spotsBooked = spotsBooked + 1
           WHERE id = ${claseId} AND spotsBooked < capacity AND deletedAt IS NULL
         `;
         if (updated === 0) throw Object.assign(new Error('CLASS_FULL'), { code: 'CLASS_FULL' });

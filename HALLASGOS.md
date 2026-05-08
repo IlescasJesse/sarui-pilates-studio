@@ -223,3 +223,23 @@
 17. Documentar dependencia MySQL en raw SQL
 18. Remover type casts `as PaymentMethod` innecesarios
 19. Agregar job de reconciliación para `spotsBooked`
+
+---
+
+## Errores Producción (2026-05-08)
+
+### H-11: Raw SQL usa `Class` en vez de `classes`
+- **Archivos:** `portal.routes.ts:590,640`, `reservaciones.routes.ts:107`
+- **Descripción:** Las consultas raw SQL usan `` `Class` `` pero Prisma mapea el modelo a `classes` via `@@map`. MySQL no encuentra la tabla porque el nombre real es `classes`.
+- **Impacto:** `POST /api/v1/reservaciones` falla con 500: `Table 'sarui_studio.Class' doesn't exist`
+- **Severidad:** 🔴 Critical
+- **Fix:** Se reemplazó `` `Class` `` por `` `classes` `` en los 3 `$executeRaw`
+- **Commit:** _(pendiente)_
+
+### H-12: Migración faltante — `memberships.mercadoPagoPaymentId`
+- **Archivos:** `schema.prisma:323`, `routes/portal.routes.ts`, `routes/webhook.routes.ts`
+- **Descripción:** El campo `mercadoPagoPaymentId` existe en el schema de Prisma pero nunca se generó una migración. La BD no tiene la columna.
+- **Impacto:** `GET /api/v1/membresias` falla con 500: `Column 'memberships.mercadoPagoPaymentId' doesn't exist`
+- **Severidad:** 🔴 Critical
+- **Fix:** Se creó migración `20260508000000_add_memberships_mp_payment_id` con `ALTER TABLE memberships ADD COLUMN mercadoPagoPaymentId`
+- **Commit:** _(pendiente)_

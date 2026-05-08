@@ -104,7 +104,7 @@ router.post(
       const reservacion = await prisma.$transaction(async (tx) => {
         // Incremento atómico: solo actualiza si hay lugares disponibles
         const slotsUpdated = await tx.$executeRaw`
-          UPDATE \`Class\` SET spotsBooked = spotsBooked + 1
+          UPDATE \`classes\` SET spotsBooked = spotsBooked + 1
           WHERE id = ${parseResult.data.classId} AND spotsBooked < capacity
         `;
         if (slotsUpdated === 0) {

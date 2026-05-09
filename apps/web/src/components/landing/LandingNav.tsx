@@ -106,8 +106,14 @@ export function LandingNav() {
           {/* Right side */}
           <div className="flex items-center gap-2">
             <Link
-              href="/login"
+              href="/portal/clases"
               className="hidden sm:inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-semibold bg-[#F6FFB5] text-[#254F40] hover:bg-[#FDFFEC] transition-all duration-200 hover:shadow-lg hover:shadow-[#F6FFB5]/20"
+            >
+              Agendar
+            </Link>
+            <Link
+              href="/login"
+              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium text-[#FDFFEC]/80 border border-white/20 hover:text-[#FDFFEC] hover:border-white/40 transition-all"
             >
               Portal →
             </Link>
@@ -147,17 +153,24 @@ export function LandingNav() {
                 </motion.button>
               ))}
               <motion.div
-                className="mt-8"
+                className="mt-8 flex flex-col gap-3"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.42 }}
               >
                 <Link
+                  href="/portal/clases"
+                  onClick={() => setMenuOpen(false)}
+                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full bg-[#F6FFB5] text-[#254F40] font-semibold text-lg"
+                >
+                  Agendar clase →
+                </Link>
+                <Link
                   href="/login"
                   onClick={() => setMenuOpen(false)}
-                  className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-[#F6FFB5] text-[#254F40] font-semibold text-lg"
+                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full border border-white/25 text-[#FDFFEC]/80 font-medium text-lg"
                 >
-                  Acceder al Portal →
+                  Ya tengo cuenta
                 </Link>
               </motion.div>
             </nav>

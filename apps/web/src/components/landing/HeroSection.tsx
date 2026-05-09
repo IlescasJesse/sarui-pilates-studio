@@ -124,20 +124,18 @@ export function HeroSection() {
           transition={{ duration: 0.7, delay: 0.9 }}
         >
           <Link
-            href="/login"
+            href="/portal/clases"
             className="group flex items-center gap-2 px-8 py-4 rounded-full bg-[#F6FFB5] text-[#254F40] font-semibold text-sm hover:bg-[#FDFFEC] transition-all duration-200 hover:shadow-2xl hover:shadow-[#F6FFB5]/20 hover:-translate-y-0.5 active:translate-y-0"
           >
-            Acceder al Portal
+            Agendar clase
             <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
           </Link>
-          <button
-            onClick={() =>
-              document.getElementById("reservaciones")?.scrollIntoView({ behavior: "smooth" })
-            }
+          <Link
+            href="/login"
             className="flex items-center gap-2 px-8 py-4 rounded-full border border-white/25 text-[#FDFFEC]/80 font-medium text-sm hover:border-white/50 hover:text-[#FDFFEC] hover:bg-white/5 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
           >
-            Reservar una clase
-          </button>
+            Ya tengo cuenta
+          </Link>
         </motion.div>
 
         {/* Stats */}

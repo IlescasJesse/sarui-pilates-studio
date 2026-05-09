@@ -265,6 +265,15 @@ export function CalendarioClases() {
       setSearchTerm("");
       setSelectedMembresiaId("");
     },
+    onError: (err: unknown) => {
+      const code = (err as { response?: { data?: { error?: { code?: string } } } })?.response?.data?.error?.code;
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      if (code === "ALREADY_RESERVED") {
+        alert("El cliente ya tiene una reservación para esta clase.");
+      } else {
+        alert(msg ?? "Error al crear la reservación.");
+      }
+    },
   });
 
   const cambiarInstructorMutation = useMutation({

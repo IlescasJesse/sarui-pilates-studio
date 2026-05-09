@@ -14,6 +14,10 @@ import {
   ArrowLeft,
   AlertCircle,
   QrCode,
+  Package,
+  ShoppingCart,
+  ExternalLink,
+  Loader2,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
@@ -207,6 +211,8 @@ function RegistradoTab() {
   const [selectedClaseId, setSelectedClaseId] = useState<string | null>(null);
   const [selectedMembresiaId, setSelectedMembresiaId] = useState<string | null>(null);
   const [confirmedClase, setConfirmedClase] = useState<ClaseInfo | null>(null);
+  const [paquetes, setPaquetes] = useState<{ id: string; name: string; sessions: number; price: string; validityDays: number; description: string | null }[]>([]);
+  const [loadingPaquetes, setLoadingPaquetes] = useState(false);
 
   // Cargar clases disponibles al encontrar cliente
   useEffect(() => {
@@ -216,6 +222,17 @@ function RegistradoTab() {
       .then((j) => setClases(j?.data ?? []))
       .catch(() => {});
   }, [step]);
+
+  // Cargar paquetes si no tiene membresías
+  useEffect(() => {
+    if (step !== "found" || memberships.length > 0) return;
+    setLoadingPaquetes(true);
+    fetch(`${API_URL}/portal/paquetes`)
+      .then((r) => r.json())
+      .then((j) => setPaquetes(j?.data ?? []))
+      .catch(() => {})
+      .finally(() => setLoadingPaquetes(false));
+  }, [step, memberships.length]);
 
   // Auto-seleccionar membresía si solo hay una
   useEffect(() => {
@@ -374,12 +391,8 @@ function RegistradoTab() {
           </div>
         </div>
 
-        {/* Membresías */}
-        {memberships.length === 0 ? (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-            No tienes membresías activas con sesiones disponibles. Contáctanos para adquirir un paquete.
-          </div>
-        ) : (
+        {/* Membresías o paquetes */}
+        {memberships.length > 0 ? (
           <div>
             <p className="text-xs font-medium text-[#254F40]/60 uppercase tracking-wider mb-2">Tus membresías activas</p>
             <div className="space-y-2">
@@ -395,17 +408,49 @@ function RegistradoTab() {
               ))}
             </div>
           </div>
+        ) : (
+          <div>
+            <p className="text-xs font-medium text-[#254F40]/60 uppercase tracking-wider mb-2">Adquiere un paquete</p>
+            {loadingPaquetes ? (
+              <div className="flex items-center justify-center py-6 text-[#254F40]/40">
+                <Loader2 className="w-4 h-4 animate-spin" />
+              </div>
+            ) : paquetes.length === 0 ? (
+              <p className="text-sm text-[#254F40]/50 text-center py-4">No hay paquetes disponibles.</p>
+            ) : (
+              <div className="space-y-2">
+                {paquetes.map((p) => (
+                  <div key={p.id} className="p-3 rounded-lg border border-[#254F40]/15 bg-white/60">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-[#254F40]">{p.name}</span>
+                      <span className="font-bold text-[#254F40]">${Number(p.price).toLocaleString("es-MX")}</span>
+                    </div>
+                    <p className="text-xs text-[#254F40]/50 mt-0.5">{p.sessions} sesión{p.sessions !== 1 ? "es" : ""} · {p.validityDays} días</p>
+                    {p.description && <p className="text-xs text-[#254F40]/60 mt-1">{p.description}</p>}
+                    <a
+                      href={`/portal/login?redirect=/portal/membresia`}
+                      className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-[#254F40] bg-[#F6FFB5] px-3 py-1.5 rounded-md hover:bg-[#E8F5A0] transition-colors"
+                    >
+                      <ShoppingCart className="w-3 h-3" /> Adquirir
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         <div className="flex gap-2">
           {btnBack("Cambiar correo", "email")}
-          <button
-            disabled={!selectedMembresiaId || memberships.length === 0}
-            onClick={() => setStep("select_class")}
-            className="flex-1 py-2.5 rounded-md bg-[#254F40] text-[#F6FFB5] text-sm font-semibold hover:bg-[#1d3d32] transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
-          >
-            Elegir clase <ChevronRight className="w-4 h-4" />
-          </button>
+          {memberships.length > 0 && (
+            <button
+              disabled={!selectedMembresiaId}
+              onClick={() => setStep("select_class")}
+              className="flex-1 py-2.5 rounded-md bg-[#254F40] text-[#F6FFB5] text-sm font-semibold hover:bg-[#1d3d32] transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+            >
+              Elegir clase <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
     );

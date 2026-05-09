@@ -330,6 +330,7 @@ router.post('/buscar-cliente', async (req: Request, res: Response, next: NextFun
     ApiSuccess(res, {
       status: 'found',
       nombre: `${user.client.firstName} ${user.client.lastName}`,
+      qrCode: user.client.qrCode,
       provisionalToken,
       memberships: user.client.memberships.map((m) => ({
         id: m.id,

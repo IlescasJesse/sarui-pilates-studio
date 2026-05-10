@@ -23,7 +23,7 @@ export default function PagoFallidoPage() {
             Intentar de nuevo
           </button>
           <button
-            onClick={() => router.push("/portal/clases")}
+            onClick={() => router.push("/tienda/clases")}
             className="flex-1 py-2.5 rounded-xl border border-[#254F40]/20 text-[#254F40]/70 text-sm hover:bg-[#254F40]/5 transition-colors"
           >
             Ver clases

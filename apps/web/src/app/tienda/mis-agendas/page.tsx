@@ -97,7 +97,7 @@ export default function MisAgendasPage() {
 
   useEffect(() => {
     const token = localStorage.getItem("sarui_token");
-    if (!token) router.push("/portal/login?redirect=/portal/mis-agendas");
+    if (!token) router.push("/tienda/login?redirect=/portal/mis-agendas");
     else setIsAuthed(true);
   }, [router]);
 
@@ -131,7 +131,7 @@ export default function MisAgendasPage() {
             <p className="text-xs text-amber-600 mt-0.5">Adquiere un paquete para reservar clases.</p>
           </div>
           <button
-            onClick={() => router.push("/portal/membresia")}
+            onClick={() => router.push("/tienda/membresia")}
             className="shrink-0 text-xs font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors"
           >
             Ver paquetes
@@ -143,7 +143,7 @@ export default function MisAgendasPage() {
         <div className="text-center py-16 text-[#254F40]/50">
           <p>Aún no tienes agendas.</p>
           <button
-            onClick={() => router.push("/portal/clases")}
+            onClick={() => router.push("/tienda/clases")}
             className="mt-3 text-sm underline text-[#254F40]"
           >
             Ver clases disponibles

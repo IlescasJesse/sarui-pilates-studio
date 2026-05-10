@@ -45,7 +45,7 @@ function PagoExitosoContent() {
               Tu reservación quedó confirmada. Te esperamos en el estudio.
             </p>
             <button
-              onClick={() => router.push("/portal/mis-agendas")}
+              onClick={() => router.push("/tienda/mis-agendas")}
               className="w-full bg-[#254F40] text-[#F6FFB5] font-semibold py-2.5 rounded-xl hover:bg-[#254F40]/90 transition-colors"
             >
               Ver mis agendas

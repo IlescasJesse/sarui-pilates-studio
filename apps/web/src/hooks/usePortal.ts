@@ -47,7 +47,7 @@ export function useClasesPortal() {
     queryKey: ["portal", "clases"],
     queryFn: async () => {
       const res = await portalPublicClient.get<{ success: boolean; data: ClasePortal[] }>(
-        "/portal/clases"
+        "/tienda/clases"
       );
       return res.data.data;
     },
@@ -73,7 +73,7 @@ export function useMisAgendas() {
     queryKey: ["portal", "mis-agendas"],
     queryFn: async () => {
       const res = await portalAuthClient.get<{ success: boolean; data: AgendaPortal[] }>(
-        "/portal/mis-agendas"
+        "/tienda/mis-agendas"
       );
       return res.data.data;
     },

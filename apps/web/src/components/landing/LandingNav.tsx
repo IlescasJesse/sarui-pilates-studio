@@ -9,7 +9,6 @@ const NAV_SECTIONS = [
   { id: "beneficios", label: "Beneficios" },
   { id: "tipos-pilates", label: "Pilates" },
   { id: "clases", label: "Horarios" },
-  { id: "reservaciones", label: "Reservar" },
   { id: "nosotros", label: "Nosotros" },
   { id: "precios", label: "Precios" },
   { id: "ubicacion", label: "Ubicación" },
@@ -106,16 +105,16 @@ export function LandingNav() {
           {/* Right side */}
           <div className="flex items-center gap-2">
             <Link
-              href="/portal/clases"
+              href="/tienda/clases"
               className="hidden sm:inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-semibold bg-[#F6FFB5] text-[#254F40] hover:bg-[#FDFFEC] transition-all duration-200 hover:shadow-lg hover:shadow-[#F6FFB5]/20"
             >
               Agendar
             </Link>
             <Link
-              href="/login"
+              href="/tienda/login"
               className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium text-[#FDFFEC]/80 border border-white/20 hover:text-[#FDFFEC] hover:border-white/40 transition-all"
             >
-              Portal →
+              Tienda →
             </Link>
             <button
               onClick={() => setMenuOpen((v) => !v)}
@@ -159,11 +158,18 @@ export function LandingNav() {
                 transition={{ delay: 0.42 }}
               >
                 <Link
-                  href="/portal/clases"
+                  href="/tienda/clases"
                   onClick={() => setMenuOpen(false)}
                   className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full bg-[#F6FFB5] text-[#254F40] font-semibold text-lg"
                 >
                   Agendar clase →
+                </Link>
+                <Link
+                  href="/tienda/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full border border-white/25 text-[#FDFFEC]/80 font-medium text-lg"
+                >
+                  Ya tengo cuenta
                 </Link>
                 <Link
                   href="/login"

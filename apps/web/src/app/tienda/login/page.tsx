@@ -201,9 +201,9 @@ function SolicitudForm() {
 
 // ── Página ────────────────────────────────────────────────────────────────────
 
-function PortalLoginContent() {
+function TiendaLoginContent() {
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") ?? "/portal/clases";
+  const redirectTo = searchParams.get("redirect") ?? "/tienda/clases";
   const [tab, setTab] = useState<"login" | "solicitud">("login");
 
   return (
@@ -212,7 +212,7 @@ function PortalLoginContent() {
         {/* Header */}
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-[#254F40]">
-            {tab === "login" ? "Accede a tu cuenta" : "Solicitar cuenta"}
+            {tab === "login" ? "Inicia sesión" : "Solicitar cuenta"}
           </h1>
           <p className="text-sm text-[#254F40]/60 mt-1">
             {tab === "login"
@@ -244,15 +244,25 @@ function PortalLoginContent() {
         ) : (
           <SolicitudForm />
         )}
+
+        {/* Acceso admin */}
+        <div className="mt-8 text-center">
+          <a
+            href="/login"
+            className="text-xs text-[#254F40]/30 hover:text-[#254F40]/60 transition-colors"
+          >
+            ADMINISTRADOR
+          </a>
+        </div>
       </div>
     </div>
   );
 }
 
-export default function PortalLoginPage() {
+export default function TiendaLoginPage() {
   return (
     <Suspense fallback={null}>
-      <PortalLoginContent />
+      <TiendaLoginContent />
     </Suspense>
   );
 }

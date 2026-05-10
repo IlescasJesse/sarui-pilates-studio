@@ -28,6 +28,9 @@ export async function loginService(input: LoginInput): Promise<AuthResult> {
       instructor: {
         select: { firstName: true, lastName: true },
       },
+      client: {
+        select: { firstName: true, lastName: true },
+      },
     },
   });
 
@@ -69,8 +72,8 @@ export async function loginService(input: LoginInput): Promise<AuthResult> {
       id: user.id,
       email: user.email,
       role: user.role,
-      firstName: user.instructor?.firstName,
-      lastName: user.instructor?.lastName,
+      firstName: user.instructor?.firstName ?? user.client?.firstName,
+      lastName: user.instructor?.lastName ?? user.client?.lastName,
     },
   };
 }

@@ -66,7 +66,7 @@ function MembresiaExitosaContent() {
                 Ya puedes reservar clases en Sarui Studio.
               </p>
               <button
-                onClick={() => router.push("/portal/clases")}
+                onClick={() => router.push("/tienda/clases")}
                 className="w-full bg-[#254F40] text-[#F6FFB5] font-semibold py-2.5 rounded-xl hover:bg-[#254F40]/90 transition-colors"
               >
                 Explorar clases

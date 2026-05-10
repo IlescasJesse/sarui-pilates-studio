@@ -241,7 +241,7 @@ export default function ClasesPortalPage() {
           <p className="text-xs text-[#254F40]/60">
             ¿Necesitas ayuda para reservar?{" "}
             <button
-              onClick={() => router.push("/portal/mis-agendas")}
+              onClick={() => router.push("/tienda/mis-agendas")}
               className="underline font-medium text-[#254F40]/80"
             >
               Ver mis agendas

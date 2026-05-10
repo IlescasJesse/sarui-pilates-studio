@@ -20,6 +20,8 @@ const envSchema = z.object({
   MP_ACCESS_TOKEN: z.string().min(1, 'MP_ACCESS_TOKEN is required'),
   MP_PUBLIC_KEY: z.string().min(1, 'MP_PUBLIC_KEY is required'),
   MP_WEBHOOK_SECRET: z.string().min(1, 'MP_WEBHOOK_SECRET is required — get it from the MercadoPago panel'),
+  RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required'),
+  RESEND_FROM_EMAIL: z.string().email('RESEND_FROM_EMAIL must be a valid email'),
 });
 
 const parsed = envSchema.safeParse(process.env);

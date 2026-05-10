@@ -31,7 +31,7 @@ portalAuthClient.interceptors.response.use(
   (r) => r,
   (err) => {
     if (err.response?.status === 401 && typeof window !== "undefined") {
-      window.location.href = "/portal/login";
+      window.location.href = "/tienda/login";
     }
     return Promise.reject(err);
   }

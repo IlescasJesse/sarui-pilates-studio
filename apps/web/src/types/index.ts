@@ -1,6 +1,6 @@
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
-export type UserRole = "admin" | "instructor" | "reception";
+export type UserRole = "admin" | "instructor" | "reception" | "client";
 
 export interface User {
   id: string;

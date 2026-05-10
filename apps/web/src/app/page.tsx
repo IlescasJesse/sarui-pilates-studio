@@ -6,7 +6,7 @@ import { HeroSection } from "@/components/landing/HeroSection";
 import { BeneficiosSection } from "@/components/landing/BeneficiosSection";
 import { TiposPilatesSection } from "@/components/landing/TiposPilatesSection";
 import { ClasesSection } from "@/components/landing/ClasesSection";
-import { ReservacionesSection } from "@/components/landing/ReservacionesSection";
+
 import { NosotrosSection } from "@/components/landing/NosotrosSection";
 import { PreciosSection } from "@/components/landing/PreciosSection";
 import { UbicacionSection } from "@/components/landing/UbicacionSection";
@@ -22,7 +22,6 @@ export default function LandingPage() {
       <BeneficiosSection />
       <TiposPilatesSection />
       <ClasesSection />
-      <ReservacionesSection />
       <NosotrosSection />
       <PreciosSection />
       <UbicacionSection />

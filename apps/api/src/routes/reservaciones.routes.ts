@@ -327,16 +327,33 @@ router.patch(
         return;
       }
 
+      const clientInfo = await prisma.client.findUnique({
+        where: { id: reservacion.clientId },
+        select: { firstName: true, lastName: true, phone: true, qrCode: true },
+      });
+
       const updated = await prisma.reservation.update({
         where: { id: req.params.id },
         data: { status: 'CONFIRMED' },
         include: {
-          client: { select: { firstName: true, lastName: true } },
+          client: { select: { firstName: true, lastName: true, phone: true } },
           class: { select: { title: true, startAt: true } },
         },
       });
 
-      ApiSuccess(res, updated);
+      const classDate = new Date(updated.class.startAt).toLocaleDateString('es-MX', {
+        weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+      });
+      const waMsg = encodeURIComponent(
+        `✅ ¡Hola ${clientInfo?.firstName}! Tu reservación en Sarui Studio está confirmada:\n\n` +
+        `📅 ${classDate}\n` +
+        `🏋️ ${updated.class.title ?? 'Clase'}\n\n` +
+        `🔑 Tu código QR para el kiosk: ${clientInfo?.qrCode ?? ''}\n\n` +
+        `📍 Preséntalo en la entrada del estudio.`
+      );
+      const waLink = clientInfo?.phone ? `https://wa.me/${clientInfo.phone.replace(/[^0-9]/g, '')}?text=${waMsg}` : null;
+
+      ApiSuccess(res, { ...updated, waLink });
     } catch (error) {
       next(error);
     }

@@ -15,15 +15,20 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (isLoading) return;
+    if (!isAuthenticated) {
       router.replace("/login");
+      return;
     }
-  }, [isAuthenticated, isLoading, router]);
+    if (user?.role === "client") {
+      router.replace("/tienda/login");
+    }
+  }, [user, isAuthenticated, isLoading, router]);
 
   if (isLoading) {
     return (
@@ -36,7 +41,7 @@ export default function DashboardLayout({
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || user?.role === "client") {
     return null;
   }
 

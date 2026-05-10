@@ -40,7 +40,7 @@ export default function MembresiaPortalPage() {
     if (MP_PUBLIC_KEY) initMercadoPago(MP_PUBLIC_KEY, { locale: "es-MX" });
     const token = localStorage.getItem("sarui_token");
     if (!token) {
-      router.push("/portal/login?redirect=/portal/membresia");
+      router.push("/tienda/login?redirect=/portal/membresia");
     } else {
       setIsAuthed(true);
     }
@@ -72,7 +72,7 @@ export default function MembresiaPortalPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <button
-        onClick={() => router.push("/portal/clases")}
+        onClick={() => router.push("/tienda/clases")}
         className="flex items-center gap-1.5 text-sm text-[#254F40]/60 hover:text-[#254F40] mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Volver a clases
@@ -103,7 +103,7 @@ export default function MembresiaPortalPage() {
               </div>
             </div>
             <button
-              onClick={() => router.push("/portal/clases")}
+              onClick={() => router.push("/tienda/clases")}
               className="text-[#F6FFB5]/80 hover:text-[#F6FFB5] transition-colors"
             >
               <ChevronRight className="w-4 h-4" />

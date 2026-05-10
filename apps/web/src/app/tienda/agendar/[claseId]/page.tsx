@@ -167,7 +167,7 @@ export default function AgendarPage() {
     <div className="max-w-2xl mx-auto">
       {/* Back */}
       <button
-        onClick={() => router.push("/portal/clases")}
+        onClick={() => router.push("/tienda/clases")}
         className="flex items-center gap-1.5 text-sm text-[#254F40]/60 hover:text-[#254F40] mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Volver a clases
@@ -481,13 +481,13 @@ export default function AgendarPage() {
             </p>
             <div className="flex gap-3 justify-center">
               <button
-                onClick={() => router.push("/portal/mis-agendas")}
+                onClick={() => router.push("/tienda/mis-agendas")}
                 className="px-5 py-2.5 rounded-xl bg-[#254F40] text-[#F6FFB5] text-sm font-semibold hover:bg-[#254F40]/90 transition-colors"
               >
                 Ver mis agendas
               </button>
               <button
-                onClick={() => router.push("/portal/clases")}
+                onClick={() => router.push("/tienda/clases")}
                 className="px-5 py-2.5 rounded-xl border border-[#254F40]/20 text-sm text-[#254F40]/70 hover:bg-[#254F40]/5 transition-colors"
               >
                 Ver más clases

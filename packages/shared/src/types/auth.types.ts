@@ -1,4 +1,4 @@
-export type Role = 'ADMIN' | 'INSTRUCTOR' | 'CLIENT'
+export type Role = 'ADMIN' | 'INSTRUCTOR' | 'RECEPCIONISTA' | 'CLIENT'
 
 export interface JWTPayload {
   id: string

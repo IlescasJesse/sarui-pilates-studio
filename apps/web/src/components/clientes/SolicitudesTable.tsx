@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, X, Clock } from "lucide-react";
+import { Check, X, Clock, Copy, CheckCircle, AlertTriangle } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 interface Solicitud {
   id: string;
@@ -19,6 +21,9 @@ export function SolicitudesTable() {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<"PENDIENTE" | "APROBADA" | "RECHAZADA" | "">("");
+  const [setupLink, setSetupLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [errorEmail, setErrorEmail] = useState<string | null>(null);
 
   const fetchSolicitudes = async () => {
     setLoading(true);
@@ -34,8 +39,29 @@ export function SolicitudesTable() {
   useEffect(() => { fetchSolicitudes(); }, [filtro]);
 
   const cambiarStatus = async (id: string, status: "APROBADA" | "RECHAZADA") => {
-    await apiClient.patch(`/portal/solicitudes/${id}`, { status });
-    fetchSolicitudes();
+    try {
+      const res = await apiClient.patch<{ data: { setupLink?: string } }>(`/portal/solicitudes/${id}`, { status });
+      if (status === "APROBADA" && res.data?.data?.setupLink) {
+        setSetupLink(res.data.data.setupLink);
+      }
+      fetchSolicitudes();
+    } catch (err: unknown) {
+      const code = (err as { response?: { data?: { error?: { code?: string; message?: string } } } })?.response?.data?.error;
+      if (code?.code === "EMAIL_TAKEN") {
+        setErrorEmail(code.message ?? "El correo ya está en uso por un cliente activo.");
+      } else {
+        toast.error(code?.message ?? "Error al cambiar estado");
+      }
+    }
+  };
+
+  const copyLink = () => {
+    if (setupLink) {
+      navigator.clipboard.writeText(setupLink);
+      setCopied(true);
+      toast.success("Enlace copiado");
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const badgeColor = (status: string) => {
@@ -46,7 +72,6 @@ export function SolicitudesTable() {
 
   return (
     <div className="space-y-4">
-      {/* Filtros */}
       <div className="flex gap-2 flex-wrap">
         {(["", "PENDIENTE", "APROBADA", "RECHAZADA"] as const).map((s) => (
           <button
@@ -125,6 +150,52 @@ export function SolicitudesTable() {
           </table>
         </div>
       )}
+
+      <Dialog open={!!errorEmail} onOpenChange={(open) => { if (!open) setErrorEmail(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="w-5 h-5" />
+              Cliente ya existe
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">{errorEmail}</p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+              Si el cliente fue eliminado y quieres reactivarlo, elimínalo de la papelera primero o usa la sección de Clientes para restaurarlo.
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!setupLink} onOpenChange={(open) => { if (!open) setSetupLink(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+              Solicitud aprobada
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              El cliente fue creado. Comparte este enlace para que establezca su contraseña:
+            </p>
+            <div className="flex items-center gap-2 bg-[#254F40]/5 rounded-lg p-3 border">
+              <code className="text-xs flex-1 break-all text-[#254F40]">{setupLink}</code>
+              <button
+                onClick={copyLink}
+                className="shrink-0 p-2 rounded-md bg-[#254F40] text-[#F6FFB5] hover:bg-[#254F40]/90 transition-colors"
+                title="Copiar"
+              >
+                {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              El enlace expira en 24 horas. También puedes copiarlo y enviarlo por WhatsApp.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

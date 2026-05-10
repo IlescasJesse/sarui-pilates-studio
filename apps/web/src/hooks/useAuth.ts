@@ -7,7 +7,7 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "instructor" | "client";
+  role: "admin" | "instructor" | "reception" | "client";
   avatarUrl?: string;
 }
 

@@ -6,6 +6,7 @@ import { ApiSuccess, ApiError } from '../utils/response';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { requireRole } from '../middlewares/role.middleware';
 import { createPreference, getPayment, createPackagePreference } from '../services/mercadopago.service';
+import { sendSetupPasswordEmail } from '../services/email.service';
 import { PaymentMethod, Prisma } from '@prisma/client';
 import { hashPassword } from '../utils/bcrypt';
 import QRCode from 'qrcode';
@@ -192,7 +193,7 @@ router.get('/solicitudes', authMiddleware, requireRole('ADMIN'), async (req: Req
 router.patch('/solicitudes/:id', authMiddleware, requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const { status } = req.body as { status: string };
+    const { status, force } = req.body as { status: string; force?: boolean };
     if (!['APROBADA', 'RECHAZADA'].includes(status)) {
       ApiError(res, 'INVALID_STATUS', 'Status debe ser APROBADA o RECHAZADA', 400);
       return;
@@ -205,28 +206,72 @@ router.patch('/solicitudes/:id', authMiddleware, requireRole('ADMIN'), async (re
     }
 
     if (status === 'APROBADA') {
-      const existingUser = await prisma.user.findUnique({ where: { email: solicitud.email } });
-      if (existingUser) {
-        ApiError(res, 'EMAIL_TAKEN', 'Ya existe un usuario con ese correo', 409);
+      const { v4: uuidv4 } = await import('uuid');
+      const existingUser = await prisma.user.findUnique({
+        where: { email: solicitud.email },
+        include: { client: { select: { id: true } } },
+      });
+      const isDeleted = existingUser?.deletedAt !== null;
+
+      if (existingUser && !isDeleted && !force) {
+        ApiError(res, 'EMAIL_TAKEN',
+          `Ya existe un usuario activo con el correo ${solicitud.email}.`, 409);
         return;
       }
 
-      const { v4: uuidv4 } = await import('uuid');
-      const tempPassword = Math.random().toString(36).slice(2, 10);
-      const hashedPassword = await hashPassword(tempPassword);
+      // Force: eliminar todo el usuario anterior + datos asociados
+      if (existingUser && force) {
+        const clientId = existingUser.client?.id;
+        if (clientId) {
+          await prisma.reservation.deleteMany({ where: { clientId } });
+          await prisma.membership.deleteMany({ where: { clientId } });
+          await prisma.attendance.deleteMany({ where: { clientId } });
+        }
+        await prisma.refreshToken.deleteMany({ where: { userId: existingUser.id } });
+        await prisma.client.deleteMany({ where: { userId: existingUser.id } });
+        await prisma.user.delete({ where: { id: existingUser.id } });
+      }
+
+      const placeholderHash = await hashPassword(uuidv4());
       const pin = String(Math.floor(1000 + Math.random() * 9000));
       const hashedPin = await hashPassword(pin);
       const qrCode = uuidv4();
 
-      const [updatedSolicitud, cliente] = await prisma.$transaction([
-        prisma.solicitudCuenta.update({
-          where: { id },
-          data: { status: 'APROBADA' },
-        }),
-        prisma.user.create({
+      const updatedUser = await prisma.$transaction(async (tx) => {
+        await tx.solicitudCuenta.update({ where: { id }, data: { status: 'APROBADA' } });
+
+        if (existingUser && isDeleted) {
+          const restored = await tx.user.update({
+            where: { id: existingUser.id },
+            data: {
+              deletedAt: null,
+              password: placeholderHash,
+              isActive: true,
+              client: {
+                update: {
+                  firstName: solicitud.nombre,
+                  lastName: solicitud.apellido,
+                  phone: solicitud.telefono,
+                  qrCode,
+                  pin: hashedPin,
+                },
+              },
+            },
+            select: {
+              id: true,
+              email: true,
+              client: {
+                select: { id: true, firstName: true, lastName: true, phone: true, qrCode: true },
+              },
+            },
+          });
+          return restored;
+        }
+
+        const created = await tx.user.create({
           data: {
             email: solicitud.email,
-            password: hashedPassword,
+            password: placeholderHash,
             role: 'CLIENT',
             client: {
               create: {
@@ -245,10 +290,25 @@ router.patch('/solicitudes/:id', authMiddleware, requireRole('ADMIN'), async (re
               select: { id: true, firstName: true, lastName: true, phone: true, qrCode: true },
             },
           },
-        }),
-      ]);
+        });
+        return created;
+      });
 
-      ApiSuccess(res, { solicitud: updatedSolicitud, cliente, tempPassword, pin });
+      // Generar token de setup (24h)
+      const setupToken = jwt.sign(
+        { userId: updatedUser.id, email: solicitud.email, purpose: 'setup-password' },
+        env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      const setupLink = `${env.FRONTEND_URL ?? 'https://sarui.com.mx'}/tienda/crear-contrasena?token=${setupToken}`;
+
+      // Enviar email con el link (no crítico — si falla no bloquea la aprobación)
+      const fullName = `${solicitud.nombre} ${solicitud.apellido}`;
+      sendSetupPasswordEmail(solicitud.email, fullName, setupLink).catch((err) =>
+        console.error('[EMAIL] Error sending setup email:', err)
+      );
+
+      ApiSuccess(res, { solicitud: { id, status: 'APROBADA' }, cliente: updatedUser.client, setupLink, pin });
       return;
     }
 
@@ -1077,6 +1137,125 @@ router.post('/verificar-pago', async (req: Request, res: Response, next: NextFun
       status: payment.status,
       reservacionStatus: updatedReservacion?.status ?? reservacion.status,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/v1/portal/establecer-contrasena  — público (via setup token)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/establecer-contrasena', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token, password } = req.body as { token?: string; password?: string };
+    if (!token || !password || password.length < 6) {
+      ApiError(res, 'VALIDATION_ERROR', 'Token y contraseña (mín. 6 caracteres) requeridos', 400);
+      return;
+    }
+
+    let decoded: { userId: string; email: string; purpose: string };
+    try {
+      decoded = jwt.verify(token, env.JWT_SECRET) as { userId: string; email: string; purpose: string };
+    } catch {
+      ApiError(res, 'TOKEN_INVALID', 'El enlace ha expirado o es inválido. Solicita uno nuevo.', 401);
+      return;
+    }
+
+    if (decoded.purpose !== 'setup-password') {
+      ApiError(res, 'TOKEN_INVALID', 'Token inválido', 401);
+      return;
+    }
+
+    const hashed = await hashPassword(password);
+    await prisma.user.update({
+      where: { id: decoded.userId, email: decoded.email, deletedAt: null },
+      data: { password: hashed },
+    });
+
+    ApiSuccess(res, { mensaje: 'Contraseña establecida correctamente. Ya puedes iniciar sesión.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/v1/portal/olvide-contrasena  — público
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/olvide-contrasena', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body as { email?: string };
+    if (!email) {
+      ApiError(res, 'VALIDATION_ERROR', 'Correo requerido', 400);
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email, deletedAt: null },
+      include: {
+        client: { select: { firstName: true, lastName: true } },
+        instructor: { select: { firstName: true, lastName: true } },
+        staffProfile: { select: { firstName: true, lastName: true } },
+      },
+    });
+
+    // No revelar si el correo existe o no por seguridad
+    if (!user) {
+      ApiSuccess(res, { mensaje: 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.' });
+      return;
+    }
+
+    const resetToken = jwt.sign(
+      { userId: user.id, email: user.email, purpose: 'reset-password' },
+      env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+    const resetLink = `${env.FRONTEND_URL ?? 'https://sarui.com.mx'}/tienda/restablecer-contrasena?token=${resetToken}`;
+
+    const profile = user.client ?? user.instructor ?? user.staffProfile;
+    const name = profile ? `${profile.firstName} ${profile.lastName}` : user.email;
+
+    const { sendResetPasswordEmail } = await import('../services/email.service');
+    sendResetPasswordEmail(user.email, name, resetLink).catch((err) =>
+      console.error('[EMAIL] Error sending reset email:', err)
+    );
+
+    ApiSuccess(res, { mensaje: 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/v1/portal/restablecer-contrasena  — público (via reset token)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/restablecer-contrasena', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token, password } = req.body as { token?: string; password?: string };
+    if (!token || !password || password.length < 6) {
+      ApiError(res, 'VALIDATION_ERROR', 'Token y contraseña (mín. 6 caracteres) requeridos', 400);
+      return;
+    }
+
+    let decoded: { userId: string; email: string; purpose: string };
+    try {
+      decoded = jwt.verify(token, env.JWT_SECRET) as { userId: string; email: string; purpose: string };
+    } catch {
+      ApiError(res, 'TOKEN_INVALID', 'El enlace ha expirado o es inválido. Solicita uno nuevo.', 401);
+      return;
+    }
+
+    if (decoded.purpose !== 'reset-password') {
+      ApiError(res, 'TOKEN_INVALID', 'Token inválido', 401);
+      return;
+    }
+
+    const hashed = await hashPassword(password);
+    await prisma.user.update({
+      where: { id: decoded.userId, email: decoded.email, deletedAt: null },
+      data: { password: hashed },
+    });
+
+    ApiSuccess(res, { mensaje: 'Contraseña restablecida correctamente. Ya puedes iniciar sesión.' });
   } catch (error) {
     next(error);
   }

@@ -13,7 +13,7 @@ router.use(requireRole('ADMIN'));
 const crearUsuarioSchema = z.object({
   email:     z.string().email('Correo inválido'),
   password:  z.string().min(6, 'Mínimo 6 caracteres'),
-  role:      z.enum(['ADMIN', 'INSTRUCTOR', 'RECEPCIONISTA']),
+  role:      z.enum(['ADMIN', 'INSTRUCTOR', 'RECEPCIONISTA', 'CLIENT']),
   firstName: z.string().min(1).max(80),
   lastName:  z.string().min(1).max(80),
   phone:     z.string().max(20).optional(),
@@ -73,6 +73,14 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     if (existe) { ApiError(res, 'CONFLICT', 'Este correo ya está registrado', 409); return; }
 
     const hash = await hashPassword(password);
+    let clientPin: string | undefined;
+    let qrCode: string | undefined;
+
+    if (role === 'CLIENT') {
+      const { v4: uuidv4 } = await import('uuid');
+      clientPin = String(Math.floor(1000 + Math.random() * 9000));
+      qrCode = uuidv4();
+    }
 
     const user = await prisma.user.create({
       data: {
@@ -81,17 +89,30 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
         role,
         ...(role === 'INSTRUCTOR'
           ? { instructor: { create: { firstName, lastName, phone, bio, specialties: JSON.stringify(specialties ?? []) } } }
+          : role === 'CLIENT'
+          ? { client: { create: { firstName, lastName, phone, qrCode: qrCode!, pin: clientPin! } } }
           : { staffProfile: { create: { firstName, lastName, phone } } }
         ),
       },
       select: {
         id: true, email: true, role: true, isActive: true, createdAt: true,
-        instructor:   { select: { firstName: true, lastName: true } },
-        staffProfile: { select: { firstName: true, lastName: true } },
+        instructor: true,
+        staffProfile: true,
+        client: true,
       },
     });
 
-    ApiSuccess(res, user, 201);
+    ApiSuccess(res, {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      ...(user.instructor && { firstName: user.instructor.firstName, lastName: user.instructor.lastName }),
+      ...(user.staffProfile && { firstName: user.staffProfile.firstName, lastName: user.staffProfile.lastName }),
+      ...(user.client && { firstName: user.client.firstName, lastName: user.client.lastName, qrCode: user.client.qrCode }),
+      ...(clientPin ? { pin: clientPin } : {}),
+    }, 201);
   } catch (error) { next(error); }
 });
 

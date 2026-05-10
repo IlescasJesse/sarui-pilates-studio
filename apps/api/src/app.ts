@@ -2,14 +2,29 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
 import { env } from './config/env';
 import routes from './routes/index';
 import { errorHandler } from './middlewares/error.middleware';
 
 const app: Application = express();
 
-// Security middlewares
+// Global rate limiter (excluye webhooks de MP)
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path.includes('/webhook'),
+  message: {
+    success: false,
+    error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Demasiadas solicitudes. Intenta de nuevo en un momento.' },
+  },
+});
+
+// ── Security middlewares
 app.use(helmet());
+app.use('/api/', globalLimiter);
 
 // CORS — permite todas las conexiones entrantes
 app.use(

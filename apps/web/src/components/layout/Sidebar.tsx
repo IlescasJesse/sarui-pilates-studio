@@ -14,6 +14,7 @@ import {
   UserCheck,
   Monitor,
   HelpCircle,
+  UserCog,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -35,6 +36,7 @@ const navItems: NavItem[] = [
   { label: "Reservaciones", href: "/reservaciones", icon: BookOpen },
   { label: "Instructores", href: "/instructores", icon: UserCheck },
   { label: "Ayuda", href: "/ayuda", icon: HelpCircle },
+  { label: "Usuarios", href: "/usuarios", icon: UserCog },
   { label: "Kiosco", href: "/kiosk", icon: Monitor },
 ];
 

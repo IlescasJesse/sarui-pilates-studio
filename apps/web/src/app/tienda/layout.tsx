@@ -8,7 +8,14 @@ export default function TiendaLayout({ children }: { children: React.ReactNode }
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
-    setLoggedIn(!!localStorage.getItem("sarui_token"));
+    function check() { setLoggedIn(!!localStorage.getItem("sarui_token")); }
+    check();
+    window.addEventListener("auth-change", check);
+    window.addEventListener("storage", check);
+    return () => {
+      window.removeEventListener("auth-change", check);
+      window.removeEventListener("storage", check);
+    };
   }, []);
 
   return (

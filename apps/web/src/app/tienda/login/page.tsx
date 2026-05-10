@@ -164,6 +164,7 @@ function LoginForm({ redirectTo, onForgot }: { redirectTo: string; onForgot: () 
       }
       localStorage.setItem("sarui_token", accessToken);
       localStorage.setItem("sarui_user", JSON.stringify(user));
+      window.dispatchEvent(new Event("auth-change"));
       router.push(redirectTo);
     } catch (err: unknown) {
       const msg =

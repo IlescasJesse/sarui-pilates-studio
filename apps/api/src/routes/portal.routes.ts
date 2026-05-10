@@ -537,6 +537,127 @@ router.get('/paquetes', async (req: Request, res: Response, next: NextFunction) 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /api/v1/portal/establecer-contrasena  — público (via setup token)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/establecer-contrasena', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token, password } = req.body as { token?: string; password?: string };
+    if (!token || !password || password.length < 6) {
+      ApiError(res, 'VALIDATION_ERROR', 'Token y contraseña (mín. 6 caracteres) requeridos', 400);
+      return;
+    }
+
+    let decoded: { userId: string; email: string; purpose: string };
+    try {
+      decoded = jwt.verify(token, env.JWT_SECRET) as { userId: string; email: string; purpose: string };
+    } catch {
+      ApiError(res, 'TOKEN_INVALID', 'El enlace ha expirado o es inválido. Solicita uno nuevo.', 401);
+      return;
+    }
+
+    if (decoded.purpose !== 'setup-password') {
+      ApiError(res, 'TOKEN_INVALID', 'Token inválido', 401);
+      return;
+    }
+
+    const hashed = await hashPassword(password);
+    await prisma.user.update({
+      where: { id: decoded.userId, email: decoded.email, deletedAt: null },
+      data: { password: hashed },
+    });
+
+    ApiSuccess(res, { mensaje: 'Contraseña establecida correctamente. Ya puedes iniciar sesión.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/v1/portal/olvide-contrasena  — público
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/olvide-contrasena', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body as { email?: string };
+    if (!email) {
+      ApiError(res, 'VALIDATION_ERROR', 'Correo requerido', 400);
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email, deletedAt: null },
+      include: {
+        client: { select: { firstName: true, lastName: true } },
+        instructor: { select: { firstName: true, lastName: true } },
+        staffProfile: { select: { firstName: true, lastName: true } },
+      },
+    });
+
+    // No revelar si el correo existe o no por seguridad
+    if (!user) {
+      ApiSuccess(res, { mensaje: 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.' });
+      return;
+    }
+
+    const resetToken = jwt.sign(
+      { userId: user.id, email: user.email, purpose: 'reset-password' },
+      env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+    const resetLink = `${env.FRONTEND_URL ?? 'https://sarui.com.mx'}/tienda/restablecer-contrasena?token=${resetToken}`;
+
+    const profile = user.client ?? user.instructor ?? user.staffProfile;
+    const name = profile ? `${profile.firstName} ${profile.lastName}` : user.email;
+
+    sendResetPasswordEmail(user.email, name, resetLink).catch((err) => {
+      console.warn('══════════════════════════════════════════════');
+      console.warn(`[EMAIL] Failed to send reset to ${user.email}`);
+      console.warn(`[EMAIL] Error:`, err instanceof Error ? err.message : JSON.stringify(err));
+      console.warn('══════════════════════════════════════════════');
+    });
+
+    ApiSuccess(res, { mensaje: 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/v1/portal/restablecer-contrasena  — público (via reset token)
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/restablecer-contrasena', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token, password } = req.body as { token?: string; password?: string };
+    if (!token || !password || password.length < 6) {
+      ApiError(res, 'VALIDATION_ERROR', 'Token y contraseña (mín. 6 caracteres) requeridos', 400);
+      return;
+    }
+
+    let decoded: { userId: string; email: string; purpose: string };
+    try {
+      decoded = jwt.verify(token, env.JWT_SECRET) as { userId: string; email: string; purpose: string };
+    } catch {
+      ApiError(res, 'TOKEN_INVALID', 'El enlace ha expirado o es inválido. Solicita uno nuevo.', 401);
+      return;
+    }
+
+    if (decoded.purpose !== 'reset-password') {
+      ApiError(res, 'TOKEN_INVALID', 'Token inválido', 401);
+      return;
+    }
+
+    const hashed = await hashPassword(password);
+    await prisma.user.update({
+      where: { id: decoded.userId, email: decoded.email, deletedAt: null },
+      data: { password: hashed },
+    });
+
+    ApiSuccess(res, { mensaje: 'Contraseña restablecida correctamente. Ya puedes iniciar sesión.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // A partir de aquí requiere auth de CLIENT
 // ─────────────────────────────────────────────────────────────────────────────
 router.use(authMiddleware);
@@ -1140,127 +1261,6 @@ router.post('/verificar-pago', async (req: Request, res: Response, next: NextFun
       status: payment.status,
       reservacionStatus: updatedReservacion?.status ?? reservacion.status,
     });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/v1/portal/establecer-contrasena  — público (via setup token)
-// ─────────────────────────────────────────────────────────────────────────────
-router.post('/establecer-contrasena', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { token, password } = req.body as { token?: string; password?: string };
-    if (!token || !password || password.length < 6) {
-      ApiError(res, 'VALIDATION_ERROR', 'Token y contraseña (mín. 6 caracteres) requeridos', 400);
-      return;
-    }
-
-    let decoded: { userId: string; email: string; purpose: string };
-    try {
-      decoded = jwt.verify(token, env.JWT_SECRET) as { userId: string; email: string; purpose: string };
-    } catch {
-      ApiError(res, 'TOKEN_INVALID', 'El enlace ha expirado o es inválido. Solicita uno nuevo.', 401);
-      return;
-    }
-
-    if (decoded.purpose !== 'setup-password') {
-      ApiError(res, 'TOKEN_INVALID', 'Token inválido', 401);
-      return;
-    }
-
-    const hashed = await hashPassword(password);
-    await prisma.user.update({
-      where: { id: decoded.userId, email: decoded.email, deletedAt: null },
-      data: { password: hashed },
-    });
-
-    ApiSuccess(res, { mensaje: 'Contraseña establecida correctamente. Ya puedes iniciar sesión.' });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/v1/portal/olvide-contrasena  — público
-// ─────────────────────────────────────────────────────────────────────────────
-router.post('/olvide-contrasena', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { email } = req.body as { email?: string };
-    if (!email) {
-      ApiError(res, 'VALIDATION_ERROR', 'Correo requerido', 400);
-      return;
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email, deletedAt: null },
-      include: {
-        client: { select: { firstName: true, lastName: true } },
-        instructor: { select: { firstName: true, lastName: true } },
-        staffProfile: { select: { firstName: true, lastName: true } },
-      },
-    });
-
-    // No revelar si el correo existe o no por seguridad
-    if (!user) {
-      ApiSuccess(res, { mensaje: 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.' });
-      return;
-    }
-
-    const resetToken = jwt.sign(
-      { userId: user.id, email: user.email, purpose: 'reset-password' },
-      env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-    const resetLink = `${env.FRONTEND_URL ?? 'https://sarui.com.mx'}/tienda/restablecer-contrasena?token=${resetToken}`;
-
-    const profile = user.client ?? user.instructor ?? user.staffProfile;
-    const name = profile ? `${profile.firstName} ${profile.lastName}` : user.email;
-
-    sendResetPasswordEmail(user.email, name, resetLink).catch((err) => {
-      console.warn('══════════════════════════════════════════════');
-      console.warn(`[EMAIL] Failed to send reset to ${user.email}`);
-      console.warn(`[EMAIL] Error:`, err instanceof Error ? err.message : JSON.stringify(err));
-      console.warn('══════════════════════════════════════════════');
-    });
-
-    ApiSuccess(res, { mensaje: 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.' });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/v1/portal/restablecer-contrasena  — público (via reset token)
-// ─────────────────────────────────────────────────────────────────────────────
-router.post('/restablecer-contrasena', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { token, password } = req.body as { token?: string; password?: string };
-    if (!token || !password || password.length < 6) {
-      ApiError(res, 'VALIDATION_ERROR', 'Token y contraseña (mín. 6 caracteres) requeridos', 400);
-      return;
-    }
-
-    let decoded: { userId: string; email: string; purpose: string };
-    try {
-      decoded = jwt.verify(token, env.JWT_SECRET) as { userId: string; email: string; purpose: string };
-    } catch {
-      ApiError(res, 'TOKEN_INVALID', 'El enlace ha expirado o es inválido. Solicita uno nuevo.', 401);
-      return;
-    }
-
-    if (decoded.purpose !== 'reset-password') {
-      ApiError(res, 'TOKEN_INVALID', 'Token inválido', 401);
-      return;
-    }
-
-    const hashed = await hashPassword(password);
-    await prisma.user.update({
-      where: { id: decoded.userId, email: decoded.email, deletedAt: null },
-      data: { password: hashed },
-    });
-
-    ApiSuccess(res, { mensaje: 'Contraseña restablecida correctamente. Ya puedes iniciar sesión.' });
   } catch (error) {
     next(error);
   }

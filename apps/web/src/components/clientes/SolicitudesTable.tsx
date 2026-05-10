@@ -237,6 +237,9 @@ export function SolicitudesTable() {
               <CheckCircle className="w-5 h-5 text-green-600" />
               Solicitud aprobada
             </DialogTitle>
+            <DialogDescription>
+              Comparte este enlace con el cliente para que establezca su contraseña.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">

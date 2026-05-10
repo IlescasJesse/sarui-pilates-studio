@@ -8,7 +8,8 @@ export async function sendSetupPasswordEmail(
   clientName: string,
   setupLink: string
 ): Promise<void> {
-  const { error } = await resend.emails.send({
+  console.log(`[EMAIL] Sending setup email to ${to}...`);
+  const res = await resend.emails.send({
     from: env.RESEND_FROM_EMAIL,
     to,
     subject: 'Tu cuenta en Sarui Studio está lista',
@@ -56,12 +57,12 @@ export async function sendSetupPasswordEmail(
     `,
   });
 
-  if (error) {
-    console.error('[EMAIL] Failed to send setup email:', error);
-    throw error;
+  if (res.error) {
+    console.error(`[EMAIL] FAILED to send setup to ${to}:`, JSON.stringify(res.error, null, 2));
+    throw res.error;
   }
 
-  console.log(`[EMAIL] Setup email sent to ${to}`);
+  console.log(`[EMAIL] Setup email sent to ${to} (id: ${res.data?.id ?? 'unknown'})`);
 }
 
 export async function sendResetPasswordEmail(
@@ -69,7 +70,8 @@ export async function sendResetPasswordEmail(
   clientName: string,
   resetLink: string
 ): Promise<void> {
-  const { error } = await resend.emails.send({
+  console.log(`[EMAIL] Sending reset email to ${to}...`);
+  const res = await resend.emails.send({
     from: env.RESEND_FROM_EMAIL,
     to,
     subject: 'Restablece tu contraseña — Sarui Studio',
@@ -116,10 +118,10 @@ export async function sendResetPasswordEmail(
     `,
   });
 
-  if (error) {
-    console.error('[EMAIL] Failed to send reset email:', error);
-    throw error;
+  if (res.error) {
+    console.error(`[EMAIL] FAILED to send reset to ${to}:`, JSON.stringify(res.error, null, 2));
+    throw res.error;
   }
 
-  console.log(`[EMAIL] Reset email sent to ${to}`);
+  console.log(`[EMAIL] Reset email sent to ${to} (id: ${res.data?.id ?? 'unknown'})`);
 }

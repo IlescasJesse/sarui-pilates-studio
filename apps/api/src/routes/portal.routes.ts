@@ -6,7 +6,7 @@ import { ApiSuccess, ApiError } from '../utils/response';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { requireRole } from '../middlewares/role.middleware';
 import { createPreference, getPayment, createPackagePreference } from '../services/mercadopago.service';
-import { sendSetupPasswordEmail } from '../services/email.service';
+import { sendSetupPasswordEmail, sendResetPasswordEmail } from '../services/email.service';
 import { PaymentMethod, Prisma } from '@prisma/client';
 import { hashPassword } from '../utils/bcrypt';
 import QRCode from 'qrcode';
@@ -304,9 +304,12 @@ router.patch('/solicitudes/:id', authMiddleware, requireRole('ADMIN'), async (re
 
       // Enviar email con el link (no crítico — si falla no bloquea la aprobación)
       const fullName = `${solicitud.nombre} ${solicitud.apellido}`;
-      sendSetupPasswordEmail(solicitud.email, fullName, setupLink).catch((err) =>
-        console.error('[EMAIL] Error sending setup email:', err)
-      );
+      sendSetupPasswordEmail(solicitud.email, fullName, setupLink).catch((err) => {
+        console.warn('══════════════════════════════════════════════');
+        console.warn(`[EMAIL] Failed to send setup to ${solicitud.email}`);
+        console.warn(`[EMAIL] Error:`, err instanceof Error ? err.message : JSON.stringify(err));
+        console.warn('══════════════════════════════════════════════');
+      });
 
       ApiSuccess(res, { solicitud: { id, status: 'APROBADA' }, cliente: updatedUser.client, setupLink, pin });
       return;
@@ -1214,10 +1217,12 @@ router.post('/olvide-contrasena', async (req: Request, res: Response, next: Next
     const profile = user.client ?? user.instructor ?? user.staffProfile;
     const name = profile ? `${profile.firstName} ${profile.lastName}` : user.email;
 
-    const { sendResetPasswordEmail } = await import('../services/email.service');
-    sendResetPasswordEmail(user.email, name, resetLink).catch((err) =>
-      console.error('[EMAIL] Error sending reset email:', err)
-    );
+    sendResetPasswordEmail(user.email, name, resetLink).catch((err) => {
+      console.warn('══════════════════════════════════════════════');
+      console.warn(`[EMAIL] Failed to send reset to ${user.email}`);
+      console.warn(`[EMAIL] Error:`, err instanceof Error ? err.message : JSON.stringify(err));
+      console.warn('══════════════════════════════════════════════');
+    });
 
     ApiSuccess(res, { mensaje: 'Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.' });
   } catch (error) {

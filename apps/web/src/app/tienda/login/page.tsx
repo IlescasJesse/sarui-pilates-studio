@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { portalPublicClient } from "@/lib/portal-client";
-import { Loader2, CheckCircle } from "lucide-react";
+import { Loader2, CheckCircle, ArrowLeft, Mail } from "lucide-react";
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
@@ -53,7 +53,93 @@ const inputCls =
 
 // ── Tab Login ─────────────────────────────────────────────────────────────────
 
-function LoginForm({ redirectTo }: { redirectTo: string }) {
+// ── Olvidé mi contraseña ──────────────────────────────────────────────────────
+
+function OlvideContrasenaForm({ onBack }: { onBack: () => void }) {
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      await portalPublicClient.post("/portal/olvide-contrasena", { email });
+      setSent(true);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message ?? "Error al enviar solicitud";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (sent) {
+    return (
+      <div className="text-center py-6 space-y-3">
+        <div className="w-14 h-14 bg-[#254F40]/10 rounded-full flex items-center justify-center mx-auto">
+          <Mail className="w-7 h-7 text-[#254F40]" />
+        </div>
+        <h3 className="font-bold text-[#254F40]">Revisa tu correo</h3>
+        <p className="text-sm text-[#254F40]/60">
+          Si el correo está registrado, recibirás un enlace para restablecer tu contraseña.
+        </p>
+        <button
+          onClick={onBack}
+          className="text-sm text-[#254F40] underline hover:text-[#254F40]/80 mt-2"
+        >
+          Volver a iniciar sesión
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-[#254F40] mb-1">Correo electrónico</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="hola@ejemplo.com"
+          className={inputCls}
+          required
+          autoFocus
+        />
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-600">{error}</div>
+      )}
+
+      <button
+        type="submit"
+        disabled={loading || !email}
+        className="w-full bg-[#254F40] text-[#F6FFB5] font-semibold py-2.5 rounded-lg hover:bg-[#254F40]/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+      >
+        {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+        Enviar enlace
+      </button>
+
+      <button
+        type="button"
+        onClick={onBack}
+        className="w-full flex items-center justify-center gap-1.5 text-sm text-[#254F40]/60 hover:text-[#254F40] transition-colors"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" />
+        Volver
+      </button>
+    </form>
+  );
+}
+
+// ── Tab Login ─────────────────────────────────────────────────────────────────
+
+function LoginForm({ redirectTo, onForgot }: { redirectTo: string; onForgot: () => void }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -109,6 +195,14 @@ function LoginForm({ redirectTo }: { redirectTo: string }) {
       >
         {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
         Iniciar sesión
+      </button>
+
+      <button
+        type="button"
+        onClick={onForgot}
+        className="w-full text-center text-sm text-[#254F40]/50 hover:text-[#254F40] transition-colors"
+      >
+        ¿Olvidaste tu contraseña?
       </button>
     </form>
   );
@@ -204,7 +298,7 @@ function SolicitudForm() {
 function TiendaLoginContent() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") ?? "/tienda/clases";
-  const [tab, setTab] = useState<"login" | "solicitud">("login");
+  const [tab, setTab] = useState<"login" | "solicitud" | "olvide">("login");
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
@@ -212,38 +306,40 @@ function TiendaLoginContent() {
         {/* Header */}
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-[#254F40]">
-            {tab === "login" ? "Inicia sesión" : "Solicitar cuenta"}
+            {tab === "login" && "Inicia sesión"}
+            {tab === "solicitud" && "Solicitar cuenta"}
+            {tab === "olvide" && "Restablecer contraseña"}
           </h1>
           <p className="text-sm text-[#254F40]/60 mt-1">
-            {tab === "login"
-              ? "Para agendar necesitas iniciar sesión"
-              : "El equipo te creará acceso y te avisará"}
+            {tab === "login" && "Para agendar necesitas iniciar sesión"}
+            {tab === "solicitud" && "El equipo te creará acceso y te avisará"}
+            {tab === "olvide" && "Te enviaremos un enlace a tu correo"}
           </p>
         </div>
 
         {/* Tabs */}
-        <div className="flex bg-[#254F40]/5 rounded-xl p-1 mb-6">
-          {(["login", "solicitud"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
-                tab === t
-                  ? "bg-white text-[#254F40] shadow-sm"
-                  : "text-[#254F40]/50 hover:text-[#254F40]/70"
-              }`}
-            >
-              {t === "login" ? "Iniciar sesión" : "Soy nuevo/a"}
-            </button>
-          ))}
-        </div>
+        {tab !== "olvide" && (
+          <div className="flex bg-[#254F40]/5 rounded-xl p-1 mb-6">
+            {(["login", "solicitud"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                  tab === t
+                    ? "bg-white text-[#254F40] shadow-sm"
+                    : "text-[#254F40]/50 hover:text-[#254F40]/70"
+                }`}
+              >
+                {t === "login" ? "Iniciar sesión" : "Soy nuevo/a"}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Contenido */}
-        {tab === "login" ? (
-          <LoginForm redirectTo={redirectTo} />
-        ) : (
-          <SolicitudForm />
-        )}
+        {tab === "login" && <LoginForm redirectTo={redirectTo} onForgot={() => setTab("olvide")} />}
+        {tab === "solicitud" && <SolicitudForm />}
+        {tab === "olvide" && <OlvideContrasenaForm onBack={() => setTab("login")} />}
 
         {/* Acceso admin */}
         <div className="mt-8 text-center">

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, X, Clock, Copy, CheckCircle, AlertTriangle } from "lucide-react";
+import { Check, X, Clock, Copy, CheckCircle, AlertTriangle, Trash2, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 interface Solicitud {
@@ -23,7 +23,8 @@ export function SolicitudesTable() {
   const [filtro, setFiltro] = useState<"PENDIENTE" | "APROBADA" | "RECHAZADA" | "">("");
   const [setupLink, setSetupLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [errorEmail, setErrorEmail] = useState<string | null>(null);
+  const [forceSolicitud, setForceSolicitud] = useState<{ id: string; email: string; name: string } | null>(null);
+  const [forceLoading, setForceLoading] = useState(false);
 
   const fetchSolicitudes = async () => {
     setLoading(true);
@@ -48,7 +49,12 @@ export function SolicitudesTable() {
     } catch (err: unknown) {
       const code = (err as { response?: { data?: { error?: { code?: string; message?: string } } } })?.response?.data?.error;
       if (code?.code === "EMAIL_TAKEN") {
-        setErrorEmail(code.message ?? "El correo ya está en uso por un cliente activo.");
+        const solicitud = solicitudes.find((s) => s.id === id);
+        setForceSolicitud({
+          id,
+          email: solicitud?.email ?? "",
+          name: `${solicitud?.nombre ?? ""} ${solicitud?.apellido ?? ""}`.trim(),
+        });
       } else {
         toast.error(code?.message ?? "Error al cambiar estado");
       }
@@ -151,18 +157,74 @@ export function SolicitudesTable() {
         </div>
       )}
 
-      <Dialog open={!!errorEmail} onOpenChange={(open) => { if (!open) setErrorEmail(null); }}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={!!forceSolicitud} onOpenChange={(open) => { if (!open) setForceSolicitud(null); }}>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-600">
+            <DialogTitle className="flex items-center gap-2 text-red-600">
               <AlertTriangle className="w-5 h-5" />
-              Cliente ya existe
+              El cliente ya existe
             </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground pt-1">
+              El correo <strong>{forceSolicitud?.email}</strong> ya está registrado como usuario activo.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">{errorEmail}</p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800 space-y-2">
+              <p className="font-semibold flex items-center gap-2">
+                <Trash2 className="w-4 h-4" />
+                Se eliminarán todos los datos del usuario existente:
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-red-700">
+                <li>Reservaciones (historial de clases agendadas)</li>
+                <li>Membresías y paquetes activos</li>
+                <li>Asistencias registradas</li>
+                <li>Tokens de sesión</li>
+                <li>Cuenta de usuario y perfil de cliente</li>
+              </ul>
+            </div>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
-              Si el cliente fue eliminado y quieres reactivarlo, elimínalo de la papelera primero o usa la sección de Clientes para restaurarlo.
+              <p className="font-medium">Después de la aprobación:</p>
+              <ul className="list-disc pl-5 mt-1 space-y-0.5 text-amber-700">
+                <li>Se creará una cuenta nueva con los datos de la solicitud</li>
+                <li>Se enviará un correo a <strong>{forceSolicitud?.email}</strong> para que establezca su contraseña</li>
+                <li>El enlace expira en 24 horas</li>
+              </ul>
+            </div>
+            <div className="flex gap-3 justify-end pt-2">
+              <button
+                onClick={() => setForceSolicitud(null)}
+                className="px-4 py-2 rounded-lg border text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  if (!forceSolicitud) return;
+                  setForceLoading(true);
+                  try {
+                    const res = await apiClient.patch<{ data: { setupLink?: string } }>(
+                      `/portal/solicitudes/${forceSolicitud.id}`,
+                      { status: "APROBADA", force: true }
+                    );
+                    setForceSolicitud(null);
+                    if (res.data?.data?.setupLink) {
+                      setSetupLink(res.data.data.setupLink);
+                    }
+                    fetchSolicitudes();
+                  } catch (err: unknown) {
+                    const msg = (err as { response?: { data?: { error?: { message?: string } } } })
+                      ?.response?.data?.error?.message ?? "Error al forzar aprobación";
+                    toast.error(msg);
+                  } finally {
+                    setForceLoading(false);
+                  }
+                }}
+                disabled={forceLoading}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-60 flex items-center gap-2"
+              >
+                {forceLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Forzar aprobación
+              </button>
             </div>
           </div>
         </DialogContent>

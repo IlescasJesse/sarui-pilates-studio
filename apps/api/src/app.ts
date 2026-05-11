@@ -23,16 +23,50 @@ const globalLimiter = rateLimit({
 });
 
 // ── Security middlewares
-app.use(helmet());
+const cspDirectives = {
+  defaultSrc: ["'none'"],
+  scriptSrc: ["'none'"],
+  styleSrc: ["'none'"],
+  imgSrc: ["'self'", "data:"],
+  connectSrc: ["'self'", ...(env.NODE_ENV === 'development' ? ["http://localhost:*"] : [])],
+  fontSrc: ["'none'"],
+  frameSrc: ["'none'"],
+  objectSrc: ["'none'"],
+  baseUri: ["'none'"],
+  formAction: ["'self'"],
+  upgradeInsecureRequests: env.NODE_ENV === 'production' ? [] : [],
+};
+
+app.use(helmet({
+  contentSecurityPolicy: { directives: cspDirectives },
+  crossOriginEmbedderPolicy: { policy: 'require-corp' },
+  crossOriginOpenerPolicy: { policy: 'same-origin' },
+  crossOriginResourcePolicy: { policy: 'same-origin' },
+  originAgentCluster: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  strictTransportSecurity: env.NODE_ENV === 'production'
+    ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+    : false,
+  xContentTypeOptions: true,
+  xDnsPrefetchControl: { allow: false },
+  xDownloadOptions: true,
+  xFrameOptions: { action: 'deny' },
+  xPermittedCrossDomainPolicies: { permittedPolicies: 'none' },
+  xXssProtection: true,
+}));
 app.use('/api/', globalLimiter);
 
-// CORS — permite todas las conexiones entrantes
+// CORS — restringido en producción
+const corsOrigin = env.NODE_ENV === 'production'
+  ? env.FRONTEND_URL
+  : true;
 app.use(
   cors({
-    origin: true,
+    origin: corsOrigin,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 86400,
   })
 );
 

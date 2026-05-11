@@ -11,27 +11,27 @@ const router = Router();
 router.use(authMiddleware);
 
 const claseSchema = z.object({
-  title: z.string().optional(),
-  tipoActividadId: z.string().optional(),
+  title: z.string().trim().optional(),
+  tipoActividadId: z.string().trim().optional(),
   type: z.enum(['FLOW', 'POWER', 'MOBILITY', 'MAT']).optional(),
   subtype: z.enum(['REFORMER', 'MAT']).optional(),
-  instructorId: z.string().min(1, 'El instructor es requerido'),
-  startAt: z.string().datetime('Fecha de inicio inválida'),
-  endAt: z.string().datetime('Fecha de fin inválida'),
+  instructorId: z.string().trim().min(1, 'El instructor es requerido'),
+  startAt: z.string().trim().datetime('Fecha de inicio inválida'),
+  endAt: z.string().trim().datetime('Fecha de fin inválida'),
   capacity: z.number().int().min(1).max(50).default(12),
-  location: z.string().optional(),
-  notes: z.string().optional(),
+  location: z.string().trim().optional(),
+  notes: z.string().trim().optional(),
 });
 
 const patchClaseSchema = z.object({
-  startAt: z.string().datetime().optional(),
-  endAt: z.string().datetime().optional(),
-  instructorId: z.string().optional(),
+  startAt: z.string().trim().datetime().optional(),
+  endAt: z.string().trim().datetime().optional(),
+  instructorId: z.string().trim().optional(),
   capacity: z.number().int().min(1).max(50).optional(),
-  location: z.string().optional(),
-  notes: z.string().optional(),
+  location: z.string().trim().optional(),
+  notes: z.string().trim().optional(),
   isCancelled: z.boolean().optional(),
-  cancelReason: z.string().optional(),
+  cancelReason: z.string().trim().optional(),
   isActive: z.boolean().optional(),
 });
 

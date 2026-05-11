@@ -24,9 +24,8 @@ export default function TiendaLayout({ children }: { children: React.ReactNode }
       <header className="bg-[#254F40] text-[#F6FFB5]">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/tienda" className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Sarui Studio" width={32} height={32} className="rounded" />
-            <span className="text-lg font-bold tracking-tight">Sarui Studio</span>
-            <span className="text-[10px] opacity-60 border-l border-[#F6FFB5]/30 pl-2 leading-none">Tienda</span>
+            <Image src="/logo.png" alt="Sarui Studio" width={28} height={28} className="rounded" />
+            <span className="text-xs opacity-60 leading-none">Tienda</span>
           </Link>
           <nav className="flex items-center gap-4 text-sm">
             {loggedIn && (

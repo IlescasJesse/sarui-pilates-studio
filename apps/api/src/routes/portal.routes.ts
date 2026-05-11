@@ -135,11 +135,11 @@ router.use(portalLimiter);
 // POST /api/v1/portal/solicitar-cuenta  — público, sin auth
 // ─────────────────────────────────────────────────────────────────────────────
 const solicitudSchema = z.object({
-  nombre:   z.string().min(1).max(80),
-  apellido: z.string().min(1).max(80),
-  email:    z.string().email(),
-  telefono: z.string().min(7).max(20),
-  mensaje:  z.string().max(500).optional(),
+  nombre:   z.string().trim().min(1).max(80),
+  apellido: z.string().trim().min(1).max(80),
+  email:    z.string().trim().email(),
+  telefono: z.string().trim().min(7).max(20),
+  mensaje:  z.string().trim().max(500).optional(),
 });
 
 router.post('/solicitar-cuenta', async (req: Request, res: Response, next: NextFunction) => {
@@ -158,6 +158,12 @@ router.post('/solicitar-cuenta', async (req: Request, res: Response, next: NextF
     });
     if (existe) {
       ApiError(res, 'ALREADY_REQUESTED', 'Ya tienes una solicitud pendiente con ese correo', 409);
+      return;
+    }
+
+    const existeUser = await prisma.user.findUnique({ where: { email: parse.data.email } });
+    if (existeUser) {
+      ApiError(res, 'EMAIL_EXISTS', 'Ya tenemos una cuenta con ese correo electrónico', 409);
       return;
     }
 
@@ -329,7 +335,7 @@ router.patch('/solicitudes/:id', authMiddleware, requireRole('ADMIN'), async (re
 // POST /api/v1/portal/buscar-cliente — público, widget landing
 // Verifica email → devuelve estado + QR + membresías activas + token provisional
 // ─────────────────────────────────────────────────────────────────────────────
-const buscarClienteSchema = z.object({ email: z.string().email() });
+const buscarClienteSchema = z.object({ email: z.string().trim().email() });
 
 router.post('/buscar-cliente', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -416,9 +422,9 @@ router.post('/buscar-cliente', async (req: Request, res: Response, next: NextFun
 // Crea reserva usando una membresía activa del cliente; valida tipo de clase
 // ─────────────────────────────────────────────────────────────────────────────
 const reservaProvSchema = z.object({
-  claseId:      z.string().min(1),
-  membresiaId:  z.string().min(1),
-  token:        z.string().min(1),
+  claseId:      z.string().trim().min(1),
+  membresiaId:  z.string().trim().min(1),
+  token:        z.string().trim().min(1),
 });
 
 router.post('/reservar-provisional', async (req: Request, res: Response, next: NextFunction) => {
@@ -690,7 +696,7 @@ router.get('/mi-qr', async (req: Request, res: Response, next: NextFunction) => 
 });
 
 const reservaSchema = z.object({
-  claseId: z.string().min(1),
+  claseId: z.string().trim().min(1),
   pagarAhora: z.boolean(),
   // Requerido si pagarAhora = false
   portalWaConfirmed: z.boolean().optional(),

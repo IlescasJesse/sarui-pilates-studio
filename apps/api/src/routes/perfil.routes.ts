@@ -9,15 +9,15 @@ const router = Router();
 router.use(authMiddleware);
 
 const updatePerfilSchema = z.object({
-  firstName: z.string().min(1).max(80).optional(),
-  lastName:  z.string().min(1).max(80).optional(),
-  phone:     z.string().max(20).optional(),
-  avatarUrl: z.string().url().optional(),
+  firstName: z.string().trim().min(1).max(80).optional(),
+  lastName:  z.string().trim().min(1).max(80).optional(),
+  phone:     z.string().trim().max(20).optional(),
+  avatarUrl: z.string().trim().url().optional(),
 });
 
 const changePasswordSchema = z.object({
-  passwordActual: z.string().min(1),
-  passwordNuevo:  z.string().min(6, 'Mínimo 6 caracteres'),
+  passwordActual: z.string().trim().min(1),
+  passwordNuevo:  z.string().trim().min(6, 'Mínimo 6 caracteres'),
 });
 
 // GET /api/v1/perfil

@@ -11,11 +11,11 @@ const router = Router();
 router.use(authMiddleware);
 
 const paqueteSchema = z.object({
-  name: z.string().min(1, 'El nombre del paquete es requerido'),
-  tipoActividadId: z.string().min(1, 'El tipo de actividad es requerido'),
+  name: z.string().trim().min(1, 'El nombre del paquete es requerido'),
+  tipoActividadId: z.string().trim().min(1, 'El tipo de actividad es requerido'),
   category: z.enum(['REFORMER', 'MAT', 'MIX']).optional(),
   classSubtype: z.enum(['REFORMER', 'MAT']).optional(),
-  description: z.string().optional(),
+  description: z.string().trim().optional(),
   sessions: z.number().int().min(1, 'Debe tener al menos 1 sesión'),
   price: z.number().positive('El precio debe ser positivo'),
   validityDays: z.number().int().min(1, 'La vigencia debe ser al menos 1 día'),

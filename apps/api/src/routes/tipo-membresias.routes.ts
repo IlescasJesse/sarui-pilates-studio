@@ -10,10 +10,10 @@ const router = Router();
 router.use(authMiddleware);
 
 const tipoMembresiaSchema = z.object({
-  nombre: z.string().min(1, 'El nombre es requerido'),
-  descripcion: z.string().optional(),
+  nombre: z.string().trim().min(1, 'El nombre es requerido'),
+  descripcion: z.string().trim().optional(),
   duracionDias: z.number().int().min(1, 'La duración debe ser al menos 1 día'),
-  actividadIds: z.array(z.string()).default([]),
+  actividadIds: z.array(z.string().trim()).default([]),
   isActive: z.boolean().default(true),
 });
 

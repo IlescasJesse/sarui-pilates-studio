@@ -14,15 +14,15 @@ router.use(authMiddleware);
 router.use(requireRole('ADMIN'));
 
 const clienteSchema = z.object({
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  email: z.string().email('Invalid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
-  phone: z.string().optional(),
-  birthDate: z.string().optional(),
-  notes: z.string().optional(),
+  firstName: z.string().trim().min(1, 'First name is required'),
+  lastName: z.string().trim().min(1, 'Last name is required'),
+  email: z.string().trim().email('Invalid email'),
+  password: z.string().trim().min(6, 'Password must be at least 6 characters').optional(),
+  phone: z.string().trim().optional(),
+  birthDate: z.string().trim().optional(),
+  notes: z.string().trim().optional(),
   pin: z
-    .string()
+    .string().trim()
     .length(4)
     .regex(/^\d{4}$/, 'PIN must be 4 digits')
     .optional(),

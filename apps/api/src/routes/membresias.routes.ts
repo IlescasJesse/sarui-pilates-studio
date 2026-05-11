@@ -10,12 +10,12 @@ const router = Router();
 router.use(authMiddleware);
 
 const membresiaSchema = z.object({
-  clientId: z.string().min(1, 'Client ID is required'),
-  packageId: z.string().min(1, 'Package ID is required'),
-  startDate: z.string().datetime('Invalid start date'),
+  clientId: z.string().trim().min(1, 'Client ID is required'),
+  packageId: z.string().trim().min(1, 'Package ID is required'),
+  startDate: z.string().trim().datetime('Invalid start date'),
   paymentMethod: z.enum(['CASH', 'CARD', 'TRANSFER', 'OTHER']).optional(),
   pricePaid: z.number().positive().optional(),
-  notes: z.string().optional(),
+  notes: z.string().trim().optional(),
 });
 
 // GET /api/v1/membresias
@@ -144,8 +144,8 @@ router.put(
     try {
       const updateSchema = z.object({
         status: z.enum(['ACTIVE', 'EXPIRED', 'EXHAUSTED', 'SUSPENDED']).optional(),
-        notes: z.string().optional(),
-        expiresAt: z.string().datetime().optional(),
+        notes: z.string().trim().optional(),
+        expiresAt: z.string().trim().datetime().optional(),
       });
 
       const parseResult = updateSchema.safeParse(req.body);

@@ -232,6 +232,8 @@ function SolicitudForm() {
         ?.response?.data?.error;
       if (code?.code === "ALREADY_REQUESTED") {
         setApiError("Ya tienes una solicitud pendiente con ese correo. Te contactaremos pronto.");
+      } else if (code?.code === "EMAIL_EXISTS") {
+        setApiError("Ya tenemos una cuenta con ese correo. Intenta iniciar sesión.");
       } else {
         setApiError(code?.message ?? "Ocurrió un error. Intenta de nuevo.");
       }

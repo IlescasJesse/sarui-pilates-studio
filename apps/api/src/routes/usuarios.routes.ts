@@ -11,15 +11,15 @@ router.use(authMiddleware);
 router.use(requireRole('ADMIN'));
 
 const crearUsuarioSchema = z.object({
-  email:     z.string().email('Correo inválido'),
-  password:  z.string().min(6, 'Mínimo 6 caracteres'),
+  email:     z.string().trim().email('Correo inválido'),
+  password:  z.string().trim().min(6, 'Mínimo 6 caracteres'),
   role:      z.enum(['ADMIN', 'INSTRUCTOR', 'RECEPCIONISTA', 'CLIENT']),
-  firstName: z.string().min(1).max(80),
-  lastName:  z.string().min(1).max(80),
-  phone:     z.string().max(20).optional(),
+  firstName: z.string().trim().min(1).max(80),
+  lastName:  z.string().trim().min(1).max(80),
+  phone:     z.string().trim().max(20).optional(),
   // Solo instructores
-  bio:          z.string().optional(),
-  specialties:  z.array(z.string()).optional(),
+  bio:          z.string().trim().optional(),
+  specialties:  z.array(z.string().trim()).optional(),
 });
 
 // GET /api/v1/usuarios — lista staff (no clientes)

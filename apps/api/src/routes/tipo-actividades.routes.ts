@@ -10,9 +10,9 @@ const router = Router();
 router.use(authMiddleware);
 
 const tipoActividadSchema = z.object({
-  nombre: z.string().min(1, 'El nombre es requerido'),
-  descripcion: z.string().optional(),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Color hex inválido').optional(),
+  nombre: z.string().trim().min(1, 'El nombre es requerido'),
+  descripcion: z.string().trim().optional(),
+  color: z.string().trim().regex(/^#[0-9A-Fa-f]{6}$/, 'Color hex inválido').optional(),
   isActive: z.boolean().default(true),
 });
 

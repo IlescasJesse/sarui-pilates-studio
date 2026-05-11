@@ -12,10 +12,10 @@ router.use(requireRole('ADMIN', 'RECEPCIONISTA'));
 // ── Cuentas Contables ────────────────────────────────────────
 
 const cuentaSchema = z.object({
-  codigo:      z.string().min(1).max(10),
-  nombre:      z.string().min(1).max(120),
+  codigo:      z.string().trim().min(1).max(10),
+  nombre:      z.string().trim().min(1).max(120),
   tipo:        z.enum(['ACTIVO', 'PASIVO', 'CAPITAL', 'INGRESO', 'COSTO', 'GASTO']),
-  descripcion: z.string().optional(),
+  descripcion: z.string().trim().optional(),
 });
 
 // GET /api/v1/contabilidad/cuentas
@@ -56,12 +56,12 @@ router.delete('/cuentas/:id', requireRole('ADMIN'), async (req: Request, res: Re
 // ── Gastos ───────────────────────────────────────────────────
 
 const gastoSchema = z.object({
-  cuentaContableId: z.string().min(1),
-  concepto:         z.string().min(1).max(200),
+  cuentaContableId: z.string().trim().min(1),
+  concepto:         z.string().trim().min(1).max(200),
   monto:            z.number().positive('El monto debe ser mayor a 0'),
-  fecha:            z.string().datetime(),
-  comprobante:      z.string().max(100).optional(),
-  notas:            z.string().optional(),
+  fecha:            z.string().trim().datetime(),
+  comprobante:      z.string().trim().max(100).optional(),
+  notas:            z.string().trim().optional(),
 });
 
 // GET /api/v1/contabilidad/gastos
@@ -116,14 +116,14 @@ router.delete('/gastos/:id', requireRole('ADMIN'), async (req: Request, res: Res
 // ── Ingresos ─────────────────────────────────────────────────
 
 const ingresoSchema = z.object({
-  cuentaContableId: z.string().min(1),
-  concepto:         z.string().min(1).max(200),
+  cuentaContableId: z.string().trim().min(1),
+  concepto:         z.string().trim().min(1).max(200),
   monto:            z.number().positive(),
-  fecha:            z.string().datetime(),
+  fecha:            z.string().trim().datetime(),
   origen:           z.enum(['MEMBRESIA_MANUAL', 'PAQUETE_MANUAL', 'PORTAL_MERCADOPAGO', 'WALK_IN', 'OTRO']),
-  referenciaId:     z.string().optional(),
-  comprobante:      z.string().max(100).optional(),
-  notas:            z.string().optional(),
+  referenciaId:     z.string().trim().optional(),
+  comprobante:      z.string().trim().max(100).optional(),
+  notas:            z.string().trim().optional(),
 });
 
 // GET /api/v1/contabilidad/ingresos

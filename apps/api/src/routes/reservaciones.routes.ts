@@ -11,11 +11,11 @@ const router = Router();
 router.use(authMiddleware);
 
 const reservacionSchema = z.object({
-  clientId: z.string().min(1, 'Client ID is required'),
-  classId: z.string().min(1, 'Class ID is required'),
-  membershipId: z.string().optional(),
+  clientId: z.string().trim().min(1, 'Client ID is required'),
+  classId: z.string().trim().min(1, 'Class ID is required'),
+  membershipId: z.string().trim().optional(),
   origin: z.enum(['MEMBERSHIP', 'WALK_IN']).default('MEMBERSHIP'),
-  notes: z.string().optional(),
+  notes: z.string().trim().optional(),
 });
 
 // GET /api/v1/reservaciones

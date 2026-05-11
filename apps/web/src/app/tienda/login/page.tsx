@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { portalPublicClient } from "@/lib/portal-client";
 import { Loader2, CheckCircle, ArrowLeft, Mail } from "lucide-react";
+import { dispatchAuthChange } from "@/lib/auth-client";
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 

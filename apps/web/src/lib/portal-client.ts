@@ -1,4 +1,5 @@
 import axios from "axios";
+import { isClientLoggedIn, clearSession } from "./auth-client";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
@@ -19,6 +20,10 @@ export const portalAuthClient = axios.create({
 
 portalAuthClient.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
+    if (!isClientLoggedIn()) {
+      clearSession();
+      throw new axios.Cancel("Sesión expirada");
+    }
     const token = localStorage.getItem("sarui_token");
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -31,6 +36,7 @@ portalAuthClient.interceptors.response.use(
   (r) => r,
   (err) => {
     if (err.response?.status === 401 && typeof window !== "undefined") {
+      clearSession();
       window.location.href = "/tienda/login";
     }
     return Promise.reject(err);

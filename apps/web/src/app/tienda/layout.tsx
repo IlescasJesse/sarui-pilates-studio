@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { isClientLoggedIn, clearSession, dispatchAuthChange } from "@/lib/auth-client";
 
 export default function TiendaLayout({ children }: { children: React.ReactNode }) {
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
-    function check() { setLoggedIn(!!localStorage.getItem("sarui_token")); }
+    function check() { setLoggedIn(isClientLoggedIn()); }
     check();
     window.addEventListener("auth-change", check);
     window.addEventListener("storage", check);
@@ -44,8 +45,8 @@ export default function TiendaLayout({ children }: { children: React.ReactNode }
             {loggedIn ? (
               <button
                 onClick={() => {
-                  localStorage.removeItem("sarui_token");
-                  localStorage.removeItem("sarui_user");
+                  clearSession();
+                  dispatchAuthChange();
                   window.location.href = "/tienda";
                 }}
                 className="bg-[#F6FFB5] text-[#254F40] font-semibold px-3 py-1.5 rounded-lg text-sm hover:bg-[#F6FFB5]/90 transition-colors"

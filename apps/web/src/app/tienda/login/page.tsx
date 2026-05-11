@@ -196,7 +196,7 @@ function LoginForm({ redirectTo, onForgot }: { redirectTo: string; onForgot: () 
         className="w-full bg-[#254F40] text-[#F6FFB5] font-semibold py-2.5 rounded-lg hover:bg-[#254F40]/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
       >
         {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-        Iniciar sesión
+        Entrar
       </button>
 
       <button

@@ -2,40 +2,47 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { portalPublicClient } from "@/lib/portal-client";
-import { Loader2, CheckCircle, AlertCircle, ArrowRight } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, ArrowRight, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
-const inputCls = "w-full border border-[#254F40]/20 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#254F40]/30";
+const schema = z.object({
+  password: z.string().min(6, "Mínimo 6 caracteres"),
+  confirm: z.string().min(1, "Confirma tu contraseña"),
+}).refine((d) => d.password === d.confirm, {
+  message: "Las contraseñas no coinciden",
+  path: ["confirm"],
+});
+
+type FormData = z.infer<typeof schema>;
+
+const inputCls = "w-full border border-[#254F40]/20 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#254F40]/30 pr-10";
 
 function RestablecerContrasenaContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
-
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [done, setDone] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  });
 
-    if (password.length < 6) { setError("Mínimo 6 caracteres"); return; }
-    if (password !== confirm) { setError("Las contraseñas no coinciden"); return; }
-
-    setLoading(true);
+  async function onSubmit(data: FormData) {
+    setApiError(null);
     try {
-      await portalPublicClient.post("/portal/restablecer-contrasena", { token, password });
+      await portalPublicClient.post("/portal/restablecer-contrasena", { token, password: data.password });
       setDone(true);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? "Error al restablecer contraseña";
-      setError(msg);
-    } finally {
-      setLoading(false);
+      setApiError(msg);
     }
-  };
+  }
 
   if (!token) {
     return (
@@ -80,41 +87,60 @@ function RestablecerContrasenaContent() {
           <p className="text-sm text-[#254F40]/60 mt-1">Elige una contraseña nueva para tu cuenta</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-[#254F40] mb-1">Nueva contraseña</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className={inputCls}
-              autoFocus
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-[#254F40] mb-1">Confirmar contraseña</label>
-            <input
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              placeholder="••••••••"
-              className={inputCls}
-            />
+            <div className="relative">
+              <input
+                type={showPass ? "text" : "password"}
+                {...register("password")}
+                placeholder="••••••••"
+                className={inputCls}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#254F40]/40 hover:text-[#254F40] transition-colors"
+              >
+                {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>}
           </div>
 
-          {error && (
+          <div>
+            <label className="block text-sm font-medium text-[#254F40] mb-1">Confirmar contraseña</label>
+            <div className="relative">
+              <input
+                type={showConfirm ? "text" : "password"}
+                {...register("confirm")}
+                placeholder="••••••••"
+                className={inputCls}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#254F40]/40 hover:text-[#254F40] transition-colors"
+              >
+                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {errors.confirm && <p className="text-xs text-red-500 mt-1">{errors.confirm.message}</p>}
+          </div>
+
+          {apiError && (
             <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-600 flex gap-2 items-start">
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />{error}
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />{apiError}
             </div>
           )}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={isSubmitting}
             className="w-full bg-[#254F40] text-[#F6FFB5] font-semibold py-2.5 rounded-lg hover:bg-[#254F40]/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+            {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
             Restablecer contraseña
           </button>
         </form>

@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { fadeInUp } from "@/lib/animations";
-import { Instagram, Facebook, Phone, MapPin, Leaf } from "lucide-react";
+import { Instagram, Facebook, Phone, MapPin } from "lucide-react";
 
 const SITEMAP = [
   {
@@ -54,14 +54,8 @@ export function FooterSection() {
           viewport={{ once: true, amount: 0.2 }}
         >
           <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-[#F6FFB5]/12 flex items-center justify-center">
-                <Leaf className="w-5 h-5 text-[#F6FFB5]" strokeWidth={1.5} />
-              </div>
-              <div>
-                <p className="font-display text-2xl font-light text-[#FDFFEC] tracking-[0.12em] uppercase">Sarui</p>
-                <p className="text-[#F6FFB5]/50 text-[10px] tracking-[0.35em] uppercase">Pilates Studio</p>
-              </div>
+            <div className="mb-4">
+              <span className="text-[#FDFFEC] font-bold text-xl tracking-[0.15em]">SARUI</span>
             </div>
             <p className="text-[#FDFFEC]/50 text-sm max-w-xs leading-relaxed font-display font-light text-lg">
               Mueve tu cuerpo.{" "}
@@ -78,10 +72,10 @@ export function FooterSection() {
               Reservar clase
             </button>
             <Link
-              href="/login"
+              href="/gestion-acceso"
               className="px-6 py-3 rounded-full border border-white/20 text-[#FDFFEC]/70 font-medium text-sm hover:border-white/40 hover:text-[#FDFFEC] transition-colors text-center"
             >
-              Portal de clientes →
+              Administradores →
             </Link>
           </div>
         </motion.div>

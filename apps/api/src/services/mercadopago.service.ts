@@ -12,36 +12,52 @@ export interface CreatePreferenceParams {
   amount: number;
 }
 
+const WEBHOOK_PATH = '/api/v1/portal/webhook/mercadopago';
+
+function isHttps(url: string) {
+  return url.startsWith('https://');
+}
+
+function addBackUrls(body: Record<string, any>, baseUrl: string, successPath: string) {
+  if (!isHttps(baseUrl)) return;
+  body.back_urls = {
+    success: `${baseUrl}${successPath}`,
+    failure: `${baseUrl}/tienda/pago/fallido`,
+    pending: `${baseUrl}/tienda/pago/pendiente`,
+  };
+  body.auto_return = 'approved';
+}
+
+function addNotificationUrl(body: Record<string, any>) {
+  if (!isHttps(env.API_URL)) return;
+  body.notification_url = `${env.API_URL}${WEBHOOK_PATH}`;
+}
+
 export async function createPreference(params: CreatePreferenceParams) {
   const preference = new Preference(mp);
 
-  const result = await preference.create({
-    body: {
-      items: [
-        {
-          id: params.reservationId,
-          title: `Sesión: ${params.claseTitle}`,
-          description: `Fecha: ${params.claseDate}`,
-          quantity: 1,
-          unit_price: params.amount,
-          currency_id: 'MXN',
-        },
-      ],
-      payer: {
-        name: params.clientName,
-        email: params.clientEmail,
+  const body: Record<string, any> = {
+    items: [
+      {
+        id: params.reservationId,
+        title: `Sesión: ${params.claseTitle}`,
+        description: `Fecha: ${params.claseDate}`,
+        quantity: 1,
+        unit_price: params.amount,
+        currency_id: 'MXN',
       },
-      external_reference: params.reservationId,
-      back_urls: {
-        success: `${env.FRONTEND_URL}/tienda/pago/exitoso`,
-        failure: `${env.FRONTEND_URL}/tienda/pago/fallido`,
-        pending: `${env.FRONTEND_URL}/tienda/pago/pendiente`,
-      },
-      auto_return: 'approved',
-      notification_url: `${env.API_URL}/api/v1/portal/webhook/mercadopago`,
+    ],
+    payer: {
+      name: params.clientName,
+      email: params.clientEmail,
     },
-  });
+    external_reference: params.reservationId,
+  };
 
+  addBackUrls(body, env.FRONTEND_URL, '/tienda/pago/exitoso');
+  addNotificationUrl(body);
+
+  const result = await preference.create({ body: body as any });
   return result;
 }
 
@@ -64,29 +80,24 @@ export async function createPackagePreference(params: CreatePackagePreferencePar
   const preference = new Preference(mp);
   const externalRef = `PKG:${params.packageId}:${params.clientId}`;
 
-  const result = await preference.create({
-    body: {
-      items: [
-        {
-          id: externalRef,
-          title: `Paquete: ${params.packageName}`,
-          description: `${params.sessions} sesión${params.sessions !== 1 ? 'es' : ''}`,
-          quantity: 1,
-          unit_price: params.amount,
-          currency_id: 'MXN',
-        },
-      ],
-      payer: { name: params.clientName, email: params.clientEmail },
-      external_reference: externalRef,
-      back_urls: {
-        success: `${env.FRONTEND_URL}/tienda/pago/membresia-exitosa`,
-        failure: `${env.FRONTEND_URL}/tienda/pago/fallido`,
-        pending: `${env.FRONTEND_URL}/tienda/pago/pendiente`,
+  const body: Record<string, any> = {
+    items: [
+      {
+        id: externalRef,
+        title: `Paquete: ${params.packageName}`,
+        description: `${params.sessions} sesión${params.sessions !== 1 ? 'es' : ''}`,
+        quantity: 1,
+        unit_price: params.amount,
+        currency_id: 'MXN',
       },
-      auto_return: 'approved',
-      notification_url: `${env.API_URL}/api/v1/portal/webhook/mercadopago`,
-    },
-  });
+    ],
+    payer: { name: params.clientName, email: params.clientEmail },
+    external_reference: externalRef,
+  };
 
+  addBackUrls(body, env.FRONTEND_URL, '/tienda/pago/membresia-exitosa');
+  addNotificationUrl(body);
+
+  const result = await preference.create({ body: body as any });
   return result;
 }

@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -84,15 +83,7 @@ export default function LoginPage() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
           >
-            <Image
-              src="/logo.png"
-              alt="Sarui Pilates Studio"
-              width={220}
-              height={81}
-              style={{ height: "auto" }}
-              className="object-contain drop-shadow-lg"
-              priority
-            />
+            <span className="text-[#FDFFEC] font-bold text-2xl tracking-[0.15em]">SARUI</span>
           </motion.div>
 
           <motion.div
@@ -131,17 +122,9 @@ export default function LoginPage() {
       <div className="w-full md:w-1/2 flex flex-col items-center justify-center px-6 py-12">
 
         {/* Logo solo en móvil */}
-        <div className="flex flex-col items-center gap-2 mb-8 md:hidden">
-          <Image
-            src="/logo.png"
-            alt="Sarui Pilates Studio"
-            width={160}
-            height={59}
-            style={{ height: "auto" }}
-            className="object-contain"
-            priority
-          />
-          <p className="text-xs text-[#254F40]/60">Pilates Studio · Oaxaca, México</p>
+          <div className="flex flex-col items-center gap-2 mb-8 md:hidden">
+            <span className="text-[#254F40] font-bold text-xl tracking-[0.15em]">SARUI</span>
+            <p className="text-xs text-[#254F40]/60">Pilates Studio · Oaxaca, México</p>
         </div>
 
         <div className="w-full max-w-sm">

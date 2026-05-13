@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Menu, X, Leaf } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 const NAV_SECTIONS = [
   { id: "beneficios", label: "Beneficios" },
@@ -65,17 +65,7 @@ export function LandingNav() {
         <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
           {/* Logo */}
           <button onClick={() => scrollTo("hero")} className="flex items-center gap-2.5 group flex-shrink-0">
-            <div className="w-8 h-8 rounded-full bg-[#F6FFB5]/15 flex items-center justify-center group-hover:bg-[#F6FFB5]/25 transition-colors">
-              <Leaf className="w-4 h-4 text-[#F6FFB5]" />
-            </div>
-            <div className="text-left leading-none">
-              <p className="text-[#FDFFEC] font-light tracking-[0.18em] uppercase text-sm font-display leading-none">
-                Sarui
-              </p>
-              <p className="text-[#F6FFB5]/60 text-[9px] tracking-[0.35em] uppercase leading-none mt-0.5">
-                Pilates Studio
-              </p>
-            </div>
+            <span className="text-[#FDFFEC] font-bold text-lg tracking-[0.15em]">SARUI</span>
           </button>
 
           {/* Desktop nav */}
@@ -105,16 +95,10 @@ export function LandingNav() {
           {/* Right side */}
           <div className="flex items-center gap-2">
             <Link
-              href="/tienda/clases"
+              href="/tienda/login?redirect=/tienda/clases"
               className="hidden sm:inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-[13px] font-semibold bg-[#F6FFB5] text-[#254F40] hover:bg-[#FDFFEC] transition-all duration-200 hover:shadow-lg hover:shadow-[#F6FFB5]/20"
             >
               Agendar
-            </Link>
-            <Link
-              href="/tienda/login"
-              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium text-[#FDFFEC]/80 border border-white/20 hover:text-[#FDFFEC] hover:border-white/40 transition-all"
-            >
-              Tienda →
             </Link>
             <button
               onClick={() => setMenuOpen((v) => !v)}
@@ -158,25 +142,18 @@ export function LandingNav() {
                 transition={{ delay: 0.42 }}
               >
                 <Link
-                  href="/tienda/clases"
+                  href="/tienda/login?redirect=/tienda/clases"
                   onClick={() => setMenuOpen(false)}
                   className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full bg-[#F6FFB5] text-[#254F40] font-semibold text-lg"
                 >
                   Agendar clase →
                 </Link>
                 <Link
-                  href="/tienda/login"
+                  href="/gestion-acceso"
                   onClick={() => setMenuOpen(false)}
-                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full border border-white/25 text-[#FDFFEC]/80 font-medium text-lg"
+                  className="text-center text-xs text-[#FDFFEC]/30 hover:text-[#FDFFEC]/60 transition-colors mt-4"
                 >
-                  Ya tengo cuenta
-                </Link>
-                <Link
-                  href="/login"
-                  onClick={() => setMenuOpen(false)}
-                  className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full border border-white/25 text-[#FDFFEC]/80 font-medium text-lg"
-                >
-                  Ya tengo cuenta
+                  Administradores
                 </Link>
               </motion.div>
             </nav>

@@ -4,6 +4,7 @@ import { LandingNav } from "@/components/landing/LandingNav";
 import { ScrollIndicator } from "@/components/landing/ScrollIndicator";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { BeneficiosSection } from "@/components/landing/BeneficiosSection";
+import { GaleriaSection } from "@/components/landing/GaleriaSection";
 import { TiposPilatesSection } from "@/components/landing/TiposPilatesSection";
 import { ClasesSection } from "@/components/landing/ClasesSection";
 
@@ -19,6 +20,7 @@ export default function LandingPage() {
       <ScrollIndicator />
 
       <HeroSection />
+      <GaleriaSection />
       <BeneficiosSection />
       <TiposPilatesSection />
       <ClasesSection />

@@ -7,7 +7,7 @@ import { authMiddleware } from '../middlewares/auth.middleware';
 import { requireRole } from '../middlewares/role.middleware';
 import { createPreference, getPayment, createPackagePreference } from '../services/mercadopago.service';
 import { sendSetupPasswordEmail, sendResetPasswordEmail } from '../services/email.service';
-import { PaymentMethod, Prisma } from '@prisma/client';
+import { activateMembershipFromPayment } from '../services/membership.service';
 import { hashPassword } from '../utils/bcrypt';
 import QRCode from 'qrcode';
 import { z } from 'zod';
@@ -545,13 +545,19 @@ router.get('/paquetes', async (req: Request, res: Response, next: NextFunction) 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/v1/portal/establecer-contrasena  — público (via setup token)
 // ─────────────────────────────────────────────────────────────────────────────
+const passwordSchema = z.object({
+  token: z.string().min(1, 'Token requerido'),
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+});
+
 router.post('/establecer-contrasena', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { token, password } = req.body as { token?: string; password?: string };
-    if (!token || !password || password.length < 6) {
-      ApiError(res, 'VALIDATION_ERROR', 'Token y contraseña (mín. 6 caracteres) requeridos', 400);
+    const parsed = passwordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      ApiError(res, 'VALIDATION_ERROR', parsed.error.errors[0].message, 400);
       return;
     }
+    const { token, password } = parsed.data;
 
     let decoded: { userId: string; email: string; purpose: string };
     try {
@@ -567,8 +573,13 @@ router.post('/establecer-contrasena', async (req: Request, res: Response, next: 
     }
 
     const hashed = await hashPassword(password);
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId, deletedAt: null } });
+    if (!user) {
+      ApiError(res, 'USER_NOT_FOUND', 'La cuenta ya no existe. Solicita un nuevo enlace al administrador.', 410);
+      return;
+    }
     await prisma.user.update({
-      where: { id: decoded.userId, email: decoded.email, deletedAt: null },
+      where: { id: decoded.userId },
       data: { password: hashed },
     });
 
@@ -632,11 +643,12 @@ router.post('/olvide-contrasena', async (req: Request, res: Response, next: Next
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/restablecer-contrasena', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { token, password } = req.body as { token?: string; password?: string };
-    if (!token || !password || password.length < 6) {
-      ApiError(res, 'VALIDATION_ERROR', 'Token y contraseña (mín. 6 caracteres) requeridos', 400);
+    const parsed = passwordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      ApiError(res, 'VALIDATION_ERROR', parsed.error.errors[0].message, 400);
       return;
     }
+    const { token, password } = parsed.data;
 
     let decoded: { userId: string; email: string; purpose: string };
     try {
@@ -652,8 +664,13 @@ router.post('/restablecer-contrasena', async (req: Request, res: Response, next:
     }
 
     const hashed = await hashPassword(password);
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId, deletedAt: null } });
+    if (!user) {
+      ApiError(res, 'USER_NOT_FOUND', 'La cuenta ya no existe. Solicita un nuevo enlace de restablecimiento.', 410);
+      return;
+    }
     await prisma.user.update({
-      where: { id: decoded.userId, email: decoded.email, deletedAt: null },
+      where: { id: decoded.userId },
       data: { password: hashed },
     });
 
@@ -1090,15 +1107,22 @@ router.post('/comprar-paquete', async (req: Request, res: Response, next: NextFu
       return;
     }
 
-    const preference = await createPackagePreference({
-      packageId: pkg.id,
-      clientId: client.id,
-      clientName: `${client.firstName} ${client.lastName}`,
-      clientEmail: client.user.email,
-      packageName: pkg.name,
-      sessions: pkg.sessions,
-      amount: Number(pkg.price),
-    });
+    let preference;
+    try {
+      preference = await createPackagePreference({
+        packageId: pkg.id,
+        clientId: client.id,
+        clientName: `${client.firstName} ${client.lastName}`,
+        clientEmail: client.user.email,
+        packageName: pkg.name,
+        sessions: pkg.sessions,
+        amount: Number(pkg.price),
+      });
+    } catch (mpError: any) {
+      console.error('[MP ERROR] createPackagePreference failed:', mpError?.message ?? mpError);
+      ApiError(res, 'MP_PREFERENCE_ERROR', 'Error al crear la preferencia de pago. Verifica que MercadoPago esté configurado correctamente.', 502);
+      return;
+    }
 
     ApiSuccess(res, { preferenceId: preference.id, checkoutUrl: preference.init_point });
   } catch (error) {
@@ -1142,47 +1166,16 @@ router.post('/verificar-pago-paquete', async (req: Request, res: Response, next:
     }
 
     if (payment.status === 'approved') {
-      const pkg = await prisma.package.findFirst({ where: { id: packageId, deletedAt: null } });
-      if (pkg) {
-        const nowDate = new Date();
-        const expiresAt = new Date(nowDate);
-        expiresAt.setDate(expiresAt.getDate() + pkg.validityDays);
-        const mpPaymentId = String(paymentId);
-
-        await prisma.$transaction(async (tx) => {
-          const membership = await tx.membership.upsert({
-            where: { mercadoPagoPaymentId: mpPaymentId },
-            create: {
-              clientId,
-              packageId,
-              status: 'ACTIVE',
-              totalSessions: pkg.sessions,
-              sessionsUsed: 0,
-              sessionsRemaining: pkg.sessions,
-              startDate: nowDate,
-              expiresAt,
-              pricePaid: pkg.price,
-              paymentStatus: 'PAID',
-              paymentMethod: 'MERCADO_PAGO' as PaymentMethod,
-              mercadoPagoPaymentId: mpPaymentId,
-            },
-            update: {},
-          });
-
-          await tx.payment.create({
-            data: {
-              membershipId: membership.id,
-              amount: payment.transaction_amount ?? pkg.price,
-              method: 'MERCADO_PAGO' as PaymentMethod,
-              status: 'PAID',
-              reference: mpPaymentId,
-              paidAt: nowDate,
-            },
-          });
-
-          await autoCreateIngreso(tx, membership.id, Number(payment.transaction_amount ?? pkg.price), `Membresía ${pkg.name} - MP`, nowDate, req.user!.id);
+      await prisma.$transaction(async (tx) => {
+        await activateMembershipFromPayment(tx, {
+          packageId,
+          clientId,
+          mpPaymentId: String(paymentId),
+          transactionAmount: payment.transaction_amount,
+          paidAt: new Date(),
+          creadoPorId: req.user!.id,
         });
-      }
+      });
     }
 
     ApiSuccess(res, { status: payment.status });
@@ -1271,36 +1264,5 @@ router.post('/verificar-pago', async (req: Request, res: Response, next: NextFun
     next(error);
   }
 });
-
-async function autoCreateIngreso(
-  tx: Prisma.TransactionClient,
-  membershipId: string,
-  monto: number,
-  concepto: string,
-  fecha: Date,
-  creadoPorId: string
-): Promise<void> {
-  const cuenta = await tx.cuentaContable.upsert({
-    where: { codigo: '401-ING' },
-    create: {
-      codigo: '401-ING',
-      nombre: 'Ingresos por Membresías MP',
-      tipo: 'INGRESO',
-    },
-    update: {},
-  });
-
-  await tx.ingreso.create({
-    data: {
-      cuentaContableId: cuenta.id,
-      concepto,
-      monto,
-      fecha,
-      origen: 'PORTAL_MERCADOPAGO',
-      referenciaId: membershipId,
-      creadoPorId,
-    },
-  });
-}
 
 export default router;

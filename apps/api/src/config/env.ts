@@ -15,7 +15,7 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  FRONTEND_URL: z.string().url().default('http://localhost:3000'),
+  FRONTEND_URL: z.string().url().default('http://localhost:3001'),
   API_URL: z.string().url().default('http://localhost:4000'),
   MP_ACCESS_TOKEN: z.string().min(1, 'MP_ACCESS_TOKEN is required'),
   MP_PUBLIC_KEY: z.string().min(1, 'MP_PUBLIC_KEY is required'),

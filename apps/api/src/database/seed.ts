@@ -324,7 +324,7 @@ async function main() {
 
   console.log('✅ Seed completado exitosamente!');
   console.log('─────────────────────────────────────────────');
-  console.log('  URL:    http://localhost:3000');
+  console.log('  URL:    http://localhost:3001');
   console.log('  Admin:  admin@sarui.mx  /  Sarui2026!');
   console.log('─────────────────────────────────────────────\n');
 }

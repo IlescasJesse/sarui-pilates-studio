@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import { staggerContainer, staggerItem } from "@/lib/animations";
 import { Check, Calendar, ArrowRight } from "lucide-react";
 
@@ -179,10 +180,8 @@ export function PreciosSection() {
                       )}
                     </div>
 
-                    <button
-                      onClick={() =>
-                        document.getElementById("reservaciones")?.scrollIntoView({ behavior: "smooth" })
-                      }
+                    <Link
+                      href={`/tienda/login?redirect=/tienda/paquetes?p=${encodeURIComponent(p.nombre)}`}
                       className={`w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 transition-all ${
                         isPopular
                           ? "bg-[#254F40] text-[#F6FFB5] hover:bg-[#1d3d32]"
@@ -190,7 +189,7 @@ export function PreciosSection() {
                       }`}
                     >
                       Reservar <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
+                    </Link>
                   </div>
                 </motion.div>
               );

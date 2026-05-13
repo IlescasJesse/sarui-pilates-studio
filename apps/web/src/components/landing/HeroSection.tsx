@@ -19,7 +19,6 @@ export function HeroSection() {
       className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden"
       style={{ backgroundColor: "#1d3d32" }}
     >
-      {/* Animated background orbs */}
       {ORBS.map((orb, i) => (
         <motion.div
           key={i}
@@ -46,7 +45,6 @@ export function HeroSection() {
         />
       ))}
 
-      {/* Grain texture overlay */}
       <div
         className="absolute inset-0 pointer-events-none mix-blend-overlay opacity-[0.06]"
         style={{
@@ -55,28 +53,17 @@ export function HeroSection() {
         }}
       />
 
-      {/* Thin diagonal line decoration */}
       <div
         className="absolute inset-0 pointer-events-none opacity-[0.04]"
         style={{
-          backgroundImage: "repeating-linear-gradient(135deg, #F6FFB5 0px, #F6FFB5 1px, transparent 1px, transparent 80px)",
+          backgroundImage:
+            "repeating-linear-gradient(135deg, #F6FFB5 0px, #F6FFB5 1px, transparent 1px, transparent 80px)",
         }}
       />
 
-      {/* Main content */}
-      <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-5xl mx-auto w-full">
-        {/* Location badge */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.15 }}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/15 bg-white/5 text-[#F6FFB5]/80 text-[11px] tracking-[0.25em] uppercase mb-10"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-[#F6FFB5]/60 animate-pulse" />
-          Xoxocotlán, Oaxaca · México
-        </motion.div>
+      <div className="relative z-10 flex flex-col items-center text-center px-5 md:px-6 max-w-5xl mx-auto w-full pt-24 md:pt-20">
 
-        {/* Studio name */}
+
         <motion.h1
           className="font-display font-light leading-none tracking-tight text-[#FDFFEC] select-none"
           style={{ fontSize: "clamp(4.5rem, 16vw, 12rem)" }}
@@ -87,7 +74,6 @@ export function HeroSection() {
           sarui
         </motion.h1>
 
-        {/* Subtitle */}
         <motion.p
           className="text-[#F6FFB5]/70 tracking-[0.5em] uppercase text-sm md:text-base font-light mt-3"
           initial={{ opacity: 0 }}
@@ -97,7 +83,6 @@ export function HeroSection() {
           Pilates Studio
         </motion.p>
 
-        {/* Divider */}
         <motion.div
           className="w-16 h-px bg-[#F6FFB5]/25 my-8"
           initial={{ scaleX: 0 }}
@@ -105,7 +90,6 @@ export function HeroSection() {
           transition={{ duration: 0.7, delay: 0.65 }}
         />
 
-        {/* Tagline */}
         <motion.p
           className="font-display font-light text-[#FDFFEC]/75 text-2xl md:text-3xl max-w-md leading-relaxed"
           initial={{ opacity: 0, y: 12 }}
@@ -116,29 +100,21 @@ export function HeroSection() {
           <em className="text-[#F6FFB5] italic">Transforma</em> tu mente.
         </motion.p>
 
-        {/* CTA buttons */}
         <motion.div
-          className="flex flex-col sm:flex-row items-center gap-4 mt-12"
+          className="flex items-center justify-center mt-12"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.9 }}
         >
           <Link
-            href="/tienda/clases"
+            href="/tienda/login?redirect=/tienda/clases"
             className="group flex items-center gap-2 px-8 py-4 rounded-full bg-[#F6FFB5] text-[#254F40] font-semibold text-sm hover:bg-[#FDFFEC] transition-all duration-200 hover:shadow-2xl hover:shadow-[#F6FFB5]/20 hover:-translate-y-0.5 active:translate-y-0"
           >
             Agendar clase
-            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-          </Link>
-          <Link
-            href="/tienda/login"
-            className="flex items-center gap-2 px-8 py-4 rounded-full border border-white/25 text-[#FDFFEC]/80 font-medium text-sm hover:border-white/50 hover:text-[#FDFFEC] hover:bg-white/5 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
-          >
-            Ya tengo cuenta
+            <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
           </Link>
         </motion.div>
 
-        {/* Stats */}
         <motion.div
           className="flex items-center gap-10 mt-16 text-center"
           initial={{ opacity: 0 }}
@@ -158,7 +134,6 @@ export function HeroSection() {
         </motion.div>
       </div>
 
-      {/* Scroll cue */}
       <motion.button
         onClick={() =>
           document.getElementById("beneficios")?.scrollIntoView({ behavior: "smooth" })

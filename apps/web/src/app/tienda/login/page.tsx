@@ -348,7 +348,7 @@ function TiendaLoginContent() {
         {/* Acceso admin */}
         <div className="mt-8 text-center">
           <a
-            href="/login"
+            href="/gestion-acceso"
             className="text-xs text-[#254F40]/30 hover:text-[#254F40]/60 transition-colors"
           >
             ADMINISTRADOR

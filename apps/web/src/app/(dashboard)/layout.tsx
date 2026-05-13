@@ -22,7 +22,7 @@ export default function DashboardLayout({
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) {
-      router.replace("/login");
+      router.replace("/gestion-acceso");
       return;
     }
     if (user?.role === "client") {

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -68,15 +67,7 @@ export function Sidebar() {
         {/* Logo */}
         <div className="flex items-center justify-center h-16 border-b border-white/10 px-3">
           {sidebarOpen ? (
-            <Image
-              src="/logo.png"
-              alt="Sarui Pilates Studio"
-              width={130}
-              height={48}
-              style={{ height: "auto" }}
-              className="object-contain"
-              priority
-            />
+            <span className="text-[#FDFFEC] font-bold text-lg tracking-[0.15em]">SARUI</span>
           ) : (
             <div
               className="flex items-center justify-center w-8 h-8 rounded-full bg-[#F6FFB5]/15 border border-[#F6FFB5]/30"

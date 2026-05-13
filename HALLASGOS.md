@@ -21,20 +21,18 @@
 
 ### 🔴 Critical
 
-#### H-01: sessionsRemaining inconsistente entre flujos
+#### ~~H-01: sessionsRemaining inconsistente entre flujos~~ ✅ FIXED
 - **Archivo:** `apps/api/src/routes/reservaciones.routes.ts:150-156`, `apps/api/src/routes/portal.routes.ts:428-435`
 - **Descripción:** El contador `sessionsRemaining` se decrementa al reservar pero NO se restaura al cancelar. El webhook y el flujo `verificar-pago-paquete` setean `sessionsRemaining` solo al crear la membresía, nunca lo ajustan después de eventos subsecuentes. Con el tiempo, `sessionsUsed + sessionsRemaining != totalSessions`.
-- **Impacto:** Clientes pueden perder sesiones a las que tienen derecho, o recibir sesiones extra después de cancelaciones.
+- **Estado:** ✅ Corregido. Los 3 flujos de cancelación (portal DELETE /reservaciones/:id, webhook, admin PATCH /:id) restauran sessionsRemaining + sessionsUsed. El flujo `reservar-provisional` y admin `POST /reservaciones` setean EXHAUSTED cuando corresponde (ver H-02).
 - **Severidad:** 🔴 Critical
-- **Sugerencia de Fix:** Toda cancelación que consumió una sesión debe incrementar `sessionsRemaining` y decrementar `sessionsUsed`. Crear una función servicio como única fuente de verdad para mutaciones de sesiones.
 - **Origen:** CONCERNS.md
 
-#### H-02: MEMBERSHIP_STATUS nunca se setea EXHAUSTED vía portal
+#### ~~H-02: MEMBERSHIP_STATUS nunca se setea EXHAUSTED vía portal~~ ✅ FIXED
 - **Archivo:** `apps/api/src/routes/portal.routes.ts:428-435`
 - **Descripción:** El admin flow (`reservaciones.routes.ts:156`) setea `status: 'EXHAUSTED'` cuando `sessionsRemaining` llega a 0. El portal (`/reservar-provisional` y `/reservaciones`) solo decrementa el contador pero nunca actualiza el status.
-- **Impacto:** Membresías con 0 sesiones quedan como `ACTIVE` indefinidamente. El cliente puede ver membresías "activas" sin sesiones en el portal.
+- **Estado:** ✅ Corregido. `reservar-provisional` ya usa `membresia.sessionsRemaining - 1 <= 0 ? 'EXHAUSTED' : 'ACTIVE'`. Admin `POST /reservaciones` también usa el mismo patrón.
 - **Severidad:** 🔴 Critical
-- **Sugerencia de Fix:** Agregar `status: membership.sessionsRemaining - 1 <= 0 ? 'EXHAUSTED' : 'ACTIVE'` al update de membresía en portal.routes.ts (línea 428-435). Seguir el patrón de reservaciones.routes.ts:156.
 - **Origen:** CONCERNS.md / Verificado en código
 
 #### H-03: Ingreso no se auto-crea en pagos de MercadoPago
@@ -117,12 +115,11 @@
 - **Sugerencia de Fix:** Dividir en `portal-public.routes.ts`, `portal-auth.routes.ts`, `portal-payment.routes.ts`. Extraer lógica de activación a `services/membership.service.ts`.
 - **Origen:** CONCERNS.md / Verificado en código
 
-#### H-12: Lógica de activación de membresía duplicada
+#### ~~H-12: Lógica de activación de membresía duplicada~~ ✅ FIXED
 - **Archivo:** `apps/api/src/routes/webhook.routes.ts:83-113`, `apps/api/src/routes/portal.routes.ts:826-857`
 - **Descripción:** Webhook y fallback `verificar-pago-paquete` contienen bloques casi idénticos de `upsert` + `payment.create`. Cualquier cambio debe aplicarse en ambos.
-- **Impacto:** Deriva de lógica entre los dos caminos; el fallback puede divergir silenciosamente del webhook canónico.
+- **Estado:** ✅ Corregido. Lógica extraída a `services/membership.service.ts:activateMembershipFromPayment()`. Ambos flujos la consumen. También se unificó `autoCreateIngreso` dentro del mismo servicio.
 - **Severidad:** 🔵 Medium
-- **Sugerencia de Fix:** Extraer función compartida `activateMembershipFromPayment()` a `services/membership.service.ts`.
 - **Origen:** CONCERNS.md / Verificado en código
 
 #### ~~H-13: verificar-pago retorna reservacionStatus hardcoded~~ ✅ FIXED

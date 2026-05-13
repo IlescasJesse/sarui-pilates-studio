@@ -21,7 +21,7 @@ export function Topbar() {
 
   async function handleLogout() {
     logout();
-    router.replace("/login");
+    router.replace("/gestion-acceso");
   }
 
   const initials = user?.name

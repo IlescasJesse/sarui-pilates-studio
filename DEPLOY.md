@@ -154,14 +154,54 @@ pm2 reload all             # hot-reload sin downtime
 - [ ] SSL activo (https verde en el browser para sarui.com.mx)
 - [ ] `pm2 list` muestra `online` para sarui-api (puerto 5001) y sarui-web (puerto 3001)
 - [ ] Maria Vita sigue corriendo sin problemas (puerto 3000 web, 5000 api)
+- [ ] RESEND_API_KEY y RESEND_FROM_EMAIL configurados en `apps/api/.env` (ver sección 9)
 - [ ] Webhook MercadoPago actualizado a `https://api.sarui.com.mx/api/v1/portal/webhook/mercadopago`
-- [ ] MP_WEBHOOK_SECRET con valor real obtenido del panel de MP (ver sección 9)
+- [ ] MP_WEBHOOK_SECRET con valor real obtenido del panel de MP (ver sección 10)
 
 ---
 
-## 9. MercadoPago — Configurar webhook
+## 9. Email — Resend (correos automáticos)
 
-### 9.1 Registrar la URL en el panel de MP
+El sistema envía correos transaccionales (enlace de bienvenida, restablecer contraseña) mediante **Resend**.
+
+### 9.1 Obtener API key
+
+1. Regístrate en https://resend.com
+2. Ve a **API Keys** → **Create API Key**
+3. Verifica tu dominio en **Domains** (agrega `sarui.com.mx` y sigue las instrucciones DNS)
+4. Copia la API key (ej: `re_...`)
+
+### 9.2 Configurar en el servidor
+
+```bash
+nano /var/www/sarui-pilates-studio/apps/api/.env
+```
+
+Asegúrate de que estas variables existan:
+```env
+RESEND_API_KEY=re_<tu_api_key>
+RESEND_FROM_EMAIL=noreply@sarui.com.mx
+```
+
+> `RESEND_FROM_EMAIL` debe usar un dominio verificado en Resend, de lo contrario los correos serán rechazados.
+
+### 9.3 Verificar envío
+
+```bash
+pm2 restart sarui-api
+pm2 logs sarui-api | grep EMAIL
+```
+
+Solicita un restablecimiento de contraseña desde `/tienda/login` — deberías ver:
+```
+[EMAIL] Reset email sent to cliente@example.com (id: ...)
+```
+
+---
+
+## 10. MercadoPago — Configurar webhook
+
+### 10.1 Registrar la URL en el panel de MP
 
 1. Panel MP → **Tu negocio → Configuración → Notificaciones → Webhooks**
 2. Crear notificación:
@@ -169,7 +209,7 @@ pm2 reload all             # hot-reload sin downtime
    - **Eventos**: `payment`
 3. Al guardar, MP muestra una **"Clave secreta"** — cópiala.
 
-### 9.2 Pegar el secret en el servidor
+### 10.2 Pegar el secret en el servidor
 
 ```bash
 nano /var/www/sarui-pilates-studio/apps/api/.env
@@ -179,7 +219,7 @@ MP_WEBHOOK_SECRET=<clave_secreta_del_panel_mp>
 
 > ⚠️ Usa la clave que genera MP, no una inventada. MP firma las notificaciones con esa clave y el API la verifica con HMAC-SHA256.
 
-### 9.3 Reiniciar y verificar
+### 10.3 Reiniciar y verificar
 
 ```bash
 pm2 restart sarui-api

@@ -1,19 +1,19 @@
 # Project State
 
-**Project:** SarUI Studio — Bug Fixes & Help Center
+**Project:** SarUI Studio — Portal & Tienda
 **Created:** 2026-05-06
-**Current Phase:** v0.3.1 Hotfixes — ✓ complete (2026-05-08)
-**Version:** v0.3.1
+**Current Phase:** v0.4 Portal & Tienda
+**Version:** v0.4
 
 ## Active Phase
 
-**All v0.3.1 hotfix phases complete**
+**Payment Flow Stabilization** — MercadoPago package purchase returns 502 in dev. Fix applied (conditional HTTPS URLs), pending TEST credentials for local testing.
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-05-06)
 
-**Core value:** Los clientes pueden reservar clases y el staff puede gestionarlas sin errores — el sistema de reservaciones debe funcionar 100% del tiempo.
+**Core value:** Los clientes pueden navegar tienda, comprar paquetes y gestionar su cuenta sin errores.
 
 ## Phase History
 
@@ -22,15 +22,18 @@ See: `.planning/PROJECT.md` (updated 2026-05-06)
 | 1 | Debug Asignación de Clases (500) | ✓ Complete | 2026-05-06 |
 | 2 | Fix Selección de Horas en Calendario | ✓ Complete | 2026-05-06 |
 | 3 | Página de Ayuda en Dashboard | ✓ Complete | 2026-05-08 |
-| 4 | Audit & Reporte de Hallazgos | ✓ Complete | 2026-05-08 |
-| 5 | Fix Sesiones y Membresías (H-01, H-02) | ✓ Complete | 2026-05-08 |
-| 6 | Fix Contabilidad MP (H-03) | ✓ Complete | 2026-05-08 |
-| 7 | Fix Seguridad Cuentas (H-04, H-05) | ✓ Complete | 2026-05-08 |
-| 8 | Fix Seguridad Portal (H-06, H-07, H-08, H-09) | ✓ Complete | 2026-05-08 |
-| 9 | Fix Cancelación Portal (H-10) | ✓ Complete | 2026-05-08 |
+| 4-9 | Hotfixes v0.3.1 (H-01 through H-10) | ✓ Complete | 2026-05-08 |
 | 10 | Dashboard Contable | Deferred | — |
+| 11 | Portal → Tienda Refactor | ✓ Complete | 2026-05-12 |
+| 12 | Email Integration (Resend) | ✓ Complete | 2026-05-12 |
+| 13 | Session & Auth Management | ✓ Complete | 2026-05-12 |
+| 14 | Landing Page Polish | ✓ Complete | 2026-05-12 |
+| 15 | Payment Flow Stabilization | ◐ In progress | — |
+| 16 | Store UI (membresia 3-col grid) | ✓ Complete | 2026-05-12 |
+| 17 | Production Readiness (envs + deploy docs) | ✓ Complete | 2026-05-12 |
 
 ## Notes
 
-- Brownfield project — codebase already mapped
-- Config in `.planning/config.json` (interactive mode, standard granularity, parallel execution)
+- Server: localhost:4000 (api) / localhost:3001 (web)
+- MP credenciales APP_USR requieren HTTPS — usar TEST en dev
+- Logo reemplazado por texto SARUI (no más .png con glow)

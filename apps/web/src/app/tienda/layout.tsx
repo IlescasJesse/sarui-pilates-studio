@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { isClientLoggedIn, clearSession, dispatchAuthChange } from "@/lib/auth-client";
 
+const NO_AUTH_PAGES = ["/tienda/login", "/tienda/restablecer-contrasena", "/tienda/crear-contrasena"];
+
 export default function TiendaLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isPublicPage = NO_AUTH_PAGES.includes(pathname);
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -24,11 +28,10 @@ export default function TiendaLayout({ children }: { children: React.ReactNode }
       <header className="bg-[#254F40] text-[#F6FFB5]">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/tienda" className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Sarui Studio" width={28} height={28} className="rounded" />
-            <span className="text-xs opacity-60 leading-none">Tienda</span>
+            <span className="text-[#F6FFB5] font-bold text-lg tracking-[0.15em]">SARUI</span>
           </Link>
           <nav className="flex items-center gap-4 text-sm">
-            {loggedIn && (
+            {loggedIn ? (
               <>
                 <a href="/tienda/clases" className="opacity-80 hover:opacity-100 transition-opacity">
                   Clases
@@ -39,20 +42,18 @@ export default function TiendaLayout({ children }: { children: React.ReactNode }
                 <a href="/tienda/membresia" className="opacity-80 hover:opacity-100 transition-opacity">
                   Membresía
                 </a>
+                <button
+                  onClick={() => {
+                    clearSession();
+                    dispatchAuthChange();
+                    window.location.href = "/tienda";
+                  }}
+                  className="bg-[#F6FFB5] text-[#254F40] font-semibold px-3 py-1.5 rounded-lg text-sm hover:bg-[#F6FFB5]/90 transition-colors"
+                >
+                  Cerrar sesión
+                </button>
               </>
-            )}
-            {loggedIn ? (
-              <button
-                onClick={() => {
-                  clearSession();
-                  dispatchAuthChange();
-                  window.location.href = "/tienda";
-                }}
-                className="bg-[#F6FFB5] text-[#254F40] font-semibold px-3 py-1.5 rounded-lg text-sm hover:bg-[#F6FFB5]/90 transition-colors"
-              >
-                Cerrar sesión
-              </button>
-            ) : (
+            ) : !isPublicPage && (
               <a
                 href="/tienda/login"
                 className="bg-[#F6FFB5] text-[#254F40] font-semibold px-3 py-1.5 rounded-lg text-sm hover:bg-[#F6FFB5]/90 transition-colors"

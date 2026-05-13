@@ -2,9 +2,9 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { createHmac } from 'crypto';
 import { prisma } from '../config/database';
 import { getPayment } from '../services/mercadopago.service';
-import { PaymentMethod, Prisma } from '@prisma/client';
 import { ApiSuccess } from '../utils/response';
 import { env } from '../config/env';
+import { activateMembershipFromPayment } from '../services/membership.service';
 
 const router = Router();
 
@@ -73,47 +73,15 @@ router.post('/mercadopago', async (req: Request, res: Response, next: NextFuncti
       const clientId = parts[2];
 
       if (payment.status === 'approved') {
-        const pkg = await prisma.package.findFirst({ where: { id: packageId, deletedAt: null } });
-        if (pkg) {
-          const now = new Date();
-          const expiresAt = new Date(now);
-          expiresAt.setDate(expiresAt.getDate() + pkg.validityDays);
-          const mpPaymentId = String(data.id);
-
-          await prisma.$transaction(async (tx) => {
-            const membership = await tx.membership.upsert({
-              where: { mercadoPagoPaymentId: mpPaymentId },
-              create: {
-                clientId,
-                packageId,
-                status: 'ACTIVE',
-                totalSessions: pkg.sessions,
-                sessionsUsed: 0,
-                sessionsRemaining: pkg.sessions,
-                startDate: now,
-                expiresAt,
-                pricePaid: pkg.price,
-                paymentStatus: 'PAID',
-                paymentMethod: 'MERCADO_PAGO' as PaymentMethod,
-                mercadoPagoPaymentId: mpPaymentId,
-              },
-              update: {},
-            });
-
-            await tx.payment.create({
-              data: {
-                membershipId: membership.id,
-                amount: payment.transaction_amount ?? pkg.price,
-                method: 'MERCADO_PAGO' as PaymentMethod,
-                status: 'PAID',
-                reference: mpPaymentId,
-                paidAt: now,
-              },
-            });
-
-            await autoCreateIngreso(tx, membership.id, Number(payment.transaction_amount ?? pkg.price), `Membresía ${pkg.name} - MP`, now);
+        await prisma.$transaction(async (tx) => {
+          await activateMembershipFromPayment(tx, {
+            packageId,
+            clientId,
+            mpPaymentId: String(data.id),
+            transactionAmount: payment.transaction_amount,
+            paidAt: new Date(),
           });
-        }
+        });
       }
 
       res.sendStatus(200);
@@ -199,41 +167,5 @@ router.post('/mercadopago', async (req: Request, res: Response, next: NextFuncti
     next(error);
   }
 });
-
-async function autoCreateIngreso(
-  tx: Prisma.TransactionClient,
-  membershipId: string,
-  monto: number,
-  concepto: string,
-  fecha: Date
-): Promise<void> {
-  const cuenta = await tx.cuentaContable.upsert({
-    where: { codigo: '401-ING' },
-    create: {
-      codigo: '401-ING',
-      nombre: 'Ingresos por Membresías MP',
-      tipo: 'INGRESO',
-    },
-    update: {},
-  });
-
-  const admin = await tx.user.findFirst({ where: { role: 'ADMIN' }, select: { id: true } });
-  if (!admin) {
-    console.warn('[webhook] No se encontró admin para crear Ingreso automático');
-    return;
-  }
-
-  await tx.ingreso.create({
-    data: {
-      cuentaContableId: cuenta.id,
-      concepto,
-      monto,
-      fecha,
-      origen: 'PORTAL_MERCADOPAGO',
-      referenciaId: membershipId,
-      creadoPorId: admin.id,
-    },
-  });
-}
 
 export default router;

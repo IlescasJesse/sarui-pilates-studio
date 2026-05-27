@@ -65,3 +65,6 @@ coverage/
 .claude/agent-memory/
 skills-lock.json
 
+
+# DevVault — contexto local Claude Code (no commitear)
+.claude/CLAUDE.md

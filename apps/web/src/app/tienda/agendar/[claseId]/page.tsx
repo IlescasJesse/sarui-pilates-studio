@@ -12,15 +12,14 @@ import {
   MapPin,
   Users,
   CreditCard,
-  MessageCircle,
   ArrowLeft,
   Loader2,
   CheckCircle,
   AlertCircle,
   ChevronRight,
   Download,
-  Package,
   Percent,
+  Zap,
 } from "lucide-react";
 
 const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY ?? "";
@@ -37,7 +36,7 @@ function formatHora(iso: string) {
   return new Date(iso).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
 }
 
-type Modo = "elegir" | "resumen_pago" | "pago" | "solicitud" | "exito_solicitud";
+type Modo = "elegir" | "confirmar_sesion" | "resumen_pago" | "pago" | "exito_sesion" | "exito_pago_solicitud";
 
 export default function AgendarPage() {
   const { claseId } = useParams<{ claseId: string }>();
@@ -48,7 +47,6 @@ export default function AgendarPage() {
   const { data: membresias, isLoading: loadingMembresias } = useMisMembresias();
 
   const [modo, setModo] = useState<Modo>("elegir");
-  const [waConfirmed, setWaConfirmed] = useState(false);
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [isAuthed, setIsAuthed] = useState<boolean | null>(null);
   const [clienteNombre, setClienteNombre] = useState<string>("");
@@ -107,22 +105,15 @@ export default function AgendarPage() {
     }
   }
 
-  async function handleSolicitar() {
+  async function handleReservarConSesion() {
     setErrorMsg(null);
     try {
-      await crearReserva.mutateAsync({
-        claseId,
-        pagarAhora: false,
-        portalWaConfirmed: waConfirmed,
-      });
-      // Cargamos el QR en segundo plano para tenerlo listo si el usuario lo quiere
+      await crearReserva.mutateAsync({ claseId, pagarAhora: false, portalWaConfirmed: false });
       try {
         const res = await portalAuthClient.get<{ success: boolean; data: { qrImage: string; name: string } }>("/portal/mi-qr");
         setQrData(res.data.data);
-      } catch {
-        // Si falla, el botón de descarga no aparece — no bloqueamos el flujo
-      }
-      setModo("exito_solicitud");
+      } catch {}
+      setModo("exito_sesion");
     } catch (err) {
       handleErrorApi(err);
       setModo("elegir");
@@ -161,7 +152,15 @@ export default function AgendarPage() {
 
   const color = clase.tipoActividad?.color ?? "#254F40";
   const monto = Number(clase.costo ?? 0);
-  const tieneMembresias = (membresias?.length ?? 0) > 0;
+
+  const membresiaCompatible = membresias?.find(
+    (m) =>
+      m.status === "ACTIVE" &&
+      m.sessionsRemaining > 0 &&
+      (!clase.tipoActividad ||
+        !m.package.tipoActividad ||
+        m.package.tipoActividad.nombre === clase.tipoActividad!.nombre)
+  ) ?? null;
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -230,60 +229,120 @@ export default function AgendarPage() {
       {/* ── Elegir modo ──────────────────────────────────────────────────────── */}
       {modo === "elegir" && (
         <div className="space-y-3">
-          {/* Con pago */}
-          <button
-            onClick={() => {
-              if (!isAuthed) {
-                router.push(`/portal/login?redirect=/portal/agendar/${claseId}`);
-                return;
-              }
-              setErrorMsg(null);
-              setModo("resumen_pago");
-            }}
-            className="w-full flex items-start gap-4 p-4 bg-[#254F40] text-[#F6FFB5] rounded-2xl hover:bg-[#254F40]/90 transition-colors text-left"
-          >
-            <div className="bg-[#F6FFB5]/20 rounded-xl p-2.5 mt-0.5">
-              <CreditCard className="w-5 h-5" />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold">Agendar y pagar ahora</p>
-              <p className="text-xs opacity-70 mt-0.5">
-                Paga con tarjeta o MercadoPago. Tu lugar queda confirmado de inmediato.
-              </p>
-              {monto > 0 && (
-                <p className="text-sm font-bold mt-2 text-[#F6FFB5]">
-                  ${monto.toLocaleString("es-MX")} MXN
-                </p>
-              )}
-            </div>
-            <ChevronRight className="w-4 h-4 mt-1 opacity-60" />
-          </button>
-
-          {/* Sin pago — solo visible si tiene membresías activas */}
-          {tieneMembresias && (
+          {/* Con sesiones activas — opción principal */}
+          {membresiaCompatible ? (
             <button
-              onClick={() => {
-                if (!isAuthed) {
-                  router.push(`/portal/login?redirect=/portal/agendar/${claseId}`);
-                  return;
-                }
-                setErrorMsg(null);
-                setModo("solicitud");
-              }}
-              className="w-full flex items-start gap-4 p-4 bg-white border-2 border-[#254F40]/20 text-[#254F40] rounded-2xl hover:border-[#254F40]/40 transition-colors text-left"
+              onClick={() => { setErrorMsg(null); setModo("confirmar_sesion"); }}
+              className="w-full flex items-start gap-4 p-4 bg-[#254F40] text-[#F6FFB5] rounded-2xl hover:bg-[#254F40]/90 transition-colors text-left"
             >
-              <div className="bg-[#254F40]/10 rounded-xl p-2.5 mt-0.5">
-                <MessageCircle className="w-5 h-5" />
+              <div className="bg-[#F6FFB5]/20 rounded-xl p-2.5 mt-0.5">
+                <Zap className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <p className="font-semibold">Enviar solicitud (sin pago)</p>
-                <p className="text-xs text-[#254F40]/60 mt-0.5">
-                  Necesitas haber contactado previamente al estudio por WhatsApp.
+                <p className="font-semibold">Agendar con mis sesiones</p>
+                <p className="text-xs opacity-70 mt-0.5">
+                  Se usará 1 sesión de tu membresía activa. Confirmado al instante.
+                </p>
+                <p className="text-xs mt-1.5 text-[#F6FFB5]/60">
+                  {membresiaCompatible.package.name} · {membresiaCompatible.sessionsRemaining} sesión{membresiaCompatible.sessionsRemaining !== 1 ? "es" : ""} disponible{membresiaCompatible.sessionsRemaining !== 1 ? "s" : ""}
                 </p>
               </div>
-              <ChevronRight className="w-4 h-4 mt-1 opacity-40" />
+              <ChevronRight className="w-4 h-4 mt-1 opacity-60" />
+            </button>
+          ) : (
+            /* Sin sesiones para este tipo — pago obligatorio */
+            <button
+              onClick={() => {
+                if (!isAuthed) { router.push(`/tienda/login?redirect=/tienda/agendar/${claseId}`); return; }
+                setErrorMsg(null);
+                setModo("resumen_pago");
+              }}
+              className="w-full flex items-start gap-4 p-4 bg-[#254F40] text-[#F6FFB5] rounded-2xl hover:bg-[#254F40]/90 transition-colors text-left"
+            >
+              <div className="bg-[#F6FFB5]/20 rounded-xl p-2.5 mt-0.5">
+                <CreditCard className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold">Agendar y pagar ahora</p>
+                <p className="text-xs opacity-70 mt-0.5">
+                  Paga con tarjeta o MercadoPago. Tu lugar queda confirmado de inmediato.
+                </p>
+                {monto > 0 && (
+                  <p className="text-sm font-bold mt-2 text-[#F6FFB5]">
+                    ${monto.toLocaleString("es-MX")} MXN
+                  </p>
+                )}
+              </div>
+              <ChevronRight className="w-4 h-4 mt-1 opacity-60" />
             </button>
           )}
+
+          {/* Pagar ahora como opción secundaria cuando tiene sesiones */}
+          {membresiaCompatible && monto > 0 && (
+            <button
+              onClick={() => {
+                if (!isAuthed) { router.push(`/tienda/login?redirect=/tienda/agendar/${claseId}`); return; }
+                setErrorMsg(null);
+                setModo("resumen_pago");
+              }}
+              className="w-full flex items-start gap-4 p-4 bg-white border border-[#254F40]/20 text-[#254F40] rounded-2xl hover:border-[#254F40]/40 transition-colors text-left"
+            >
+              <div className="bg-[#254F40]/8 rounded-xl p-2.5 mt-0.5">
+                <CreditCard className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-sm">Pagar esta sesión</p>
+                <p className="text-xs text-[#254F40]/60 mt-0.5">
+                  Paga por separado — no consume tu membresía.
+                </p>
+              </div>
+              <span className="text-sm font-bold text-[#254F40] mt-1">
+                ${monto.toLocaleString("es-MX")}
+              </span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Confirmar sesión ──────────────────────────────────────────────────── */}
+      {modo === "confirmar_sesion" && membresiaCompatible && (
+        <div className="bg-white rounded-2xl border border-[#254F40]/10 p-6 space-y-5">
+          <div>
+            <h2 className="font-semibold text-[#254F40]">Confirmar reservación</h2>
+            <p className="text-sm text-[#254F40]/60 mt-1">Se descontará 1 sesión de tu membresía.</p>
+          </div>
+          <div className="bg-[#254F40]/5 rounded-xl p-4 space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-[#254F40]/60">Membresía</span>
+              <span className="font-medium text-[#254F40]">{membresiaCompatible.package.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#254F40]/60">Sesiones restantes</span>
+              <span className="font-medium text-[#254F40]">
+                {membresiaCompatible.sessionsRemaining} → {membresiaCompatible.sessionsRemaining - 1}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#254F40]/60">Clase</span>
+              <span className="font-medium text-[#254F40]">{clase.title}</span>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setModo("elegir")}
+              className="flex-1 py-2.5 rounded-xl border border-[#254F40]/20 text-sm text-[#254F40]/60 hover:bg-[#254F40]/5 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleReservarConSesion}
+              disabled={crearReserva.isPending}
+              className="flex-1 py-2.5 rounded-xl bg-[#254F40] text-[#F6FFB5] text-sm font-semibold hover:bg-[#254F40]/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {crearReserva.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              {crearReserva.isPending ? "Procesando…" : "Confirmar"}
+            </button>
+          </div>
         </div>
       )}
 
@@ -402,56 +461,6 @@ export default function AgendarPage() {
         </div>
       )}
 
-      {/* ── Solicitud sin pago ───────────────────────────────────────────────── */}
-      {modo === "solicitud" && (
-        <div className="bg-white rounded-2xl border border-[#254F40]/10 p-6 space-y-5">
-          <div>
-            <h2 className="font-semibold text-[#254F40]">Solicitar lugar</h2>
-            <p className="text-sm text-[#254F40]/60 mt-1">
-              Tu solicitud se enviará al equipo de Sarui Studio para revisión.
-            </p>
-          </div>
-
-          <label className="flex items-start gap-3 cursor-pointer group">
-            <div className="relative mt-0.5">
-              <input
-                type="checkbox"
-                checked={waConfirmed}
-                onChange={(e) => setWaConfirmed(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-5 h-5 rounded border-2 border-[#254F40]/30 peer-checked:bg-[#254F40] peer-checked:border-[#254F40] transition-colors flex items-center justify-center">
-                {waConfirmed && (
-                  <svg className="w-3 h-3 text-[#F6FFB5]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </div>
-            </div>
-            <span className="text-sm text-[#254F40]/80 leading-relaxed">
-              Confirmo que ya me puse en contacto con el estudio por{" "}
-              <span className="font-semibold">WhatsApp</span> y estoy esperando respuesta.
-            </span>
-          </label>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setModo("elegir")}
-              className="flex-1 py-2.5 rounded-xl border border-[#254F40]/20 text-sm text-[#254F40]/60 hover:bg-[#254F40]/5 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleSolicitar}
-              disabled={!waConfirmed || crearReserva.isPending}
-              className="flex-1 py-2.5 rounded-xl bg-[#254F40] text-[#F6FFB5] text-sm font-semibold hover:bg-[#254F40]/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {crearReserva.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Enviar solicitud
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ── Wallet de MercadoPago ─────────────────────────────────────────────── */}
       {modo === "pago" && preferenceId && (
@@ -467,17 +476,16 @@ export default function AgendarPage() {
         </div>
       )}
 
-      {/* ── Éxito solicitud ───────────────────────────────────────────────────── */}
-      {modo === "exito_solicitud" && (
+      {/* ── Éxito reservación con sesión ─────────────────────────────────────── */}
+      {modo === "exito_sesion" && (
         <div className="space-y-4">
-          {/* Confirmación */}
           <div className="bg-white rounded-2xl border border-[#254F40]/10 p-8 text-center">
-            <div className="w-14 h-14 bg-[#254F40]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-7 h-7 text-[#254F40]" />
+            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-7 h-7 text-green-600" />
             </div>
-            <h2 className="font-bold text-[#254F40] text-lg mb-2">¡Solicitud enviada!</h2>
+            <h2 className="font-bold text-[#254F40] text-lg mb-2">¡Reservación confirmada!</h2>
             <p className="text-sm text-[#254F40]/60 mb-6">
-              El equipo de Sarui Studio revisará tu solicitud y te confirmará por WhatsApp.
+              Tu lugar está reservado. Presenta tu QR al llegar al estudio.
             </p>
             <div className="flex gap-3 justify-center">
               <button

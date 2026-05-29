@@ -114,7 +114,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const instructor = await prisma.instructor.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       select: {
         id: true,
         firstName: true,
@@ -171,7 +171,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
     const { specialties, ...rest } = parseResult.data;
     const instructor = await prisma.instructor.update({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       data: {
         ...rest,
         ...(specialties !== undefined ? { specialties: JSON.stringify(specialties) } : {}),
@@ -199,7 +199,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     await prisma.instructor.update({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       data: { deletedAt: new Date() },
     });
 

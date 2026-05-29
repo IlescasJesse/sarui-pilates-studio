@@ -36,6 +36,25 @@ export interface Ingreso {
   creadoPor: { email: string };
 }
 
+export interface CorteCaja {
+  id: string;
+  claseId: string;
+  instructorId: string;
+  fecha: string;
+  totalReservaciones: number;
+  ingresoDirecto: number;
+  ingresoMembresia: number;
+  ingresoTotal: number;
+  creadoEn: string;
+  clase: { title: string | null; startAt: string; endAt: string };
+  instructor: { firstName: string; lastName: string };
+}
+
+export interface CortesCajaResponse {
+  cortes: CorteCaja[];
+  totales: { ingresoDirecto: number; ingresoMembresia: number; ingresoTotal: number; reservaciones: number };
+}
+
 export interface ReporteContable {
   mes: number;
   anio: number;
@@ -44,6 +63,8 @@ export interface ReporteContable {
   balance: number;
   ingresosRegistrados: number;
   ingresosMembresias: number;
+  ingresosCortesCaja: number;
+  totalClasesConCorte: number;
   desglosePorCuenta: Array<{ codigo: string; nombre: string; tipo: string; total: number }>;
   gastos: Gasto[];
   ingresos: Ingreso[];
@@ -134,6 +155,19 @@ export function useEliminarIngreso() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contabilidad-ingresos'] });
       qc.invalidateQueries({ queryKey: ['contabilidad-reporte'] });
+    },
+  });
+}
+
+// Cortes de Caja
+export function useCortesCaja(mes?: number, anio?: number) {
+  return useQuery<CortesCajaResponse>({
+    queryKey: ['contabilidad-cortes-caja', mes, anio],
+    queryFn: async () => {
+      const res = await apiClient.get('/contabilidad/cortes-caja', {
+        params: mes && anio ? { mes, anio } : {},
+      });
+      return res.data.data;
     },
   });
 }

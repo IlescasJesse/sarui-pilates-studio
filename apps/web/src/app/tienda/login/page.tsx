@@ -2,14 +2,14 @@
 
 export const dynamic = "force-dynamic";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { portalPublicClient } from "@/lib/portal-client";
 import { Loader2, CheckCircle, ArrowLeft, Mail } from "lucide-react";
-import { dispatchAuthChange } from "@/lib/auth-client";
+import { dispatchAuthChange, setTokens, isClientLoggedIn } from "@/lib/auth-client";
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
@@ -155,15 +155,15 @@ function LoginForm({ redirectTo, onForgot }: { redirectTo: string; onForgot: () 
     try {
       const res = await portalPublicClient.post<{
         success: boolean;
-        data: { accessToken: string; user: { role: string; email: string } };
+        data: { accessToken: string; refreshToken: string; user: { role: string; email: string } };
       }>("/auth/login", data);
 
-      const { accessToken, user } = res.data.data;
+      const { accessToken, refreshToken, user } = res.data.data;
       if (user.role !== "CLIENT") {
         setError("Esta área es exclusiva para clientes.");
         return;
       }
-      localStorage.setItem("sarui_token", accessToken);
+      setTokens(accessToken, refreshToken);
       localStorage.setItem("sarui_user", JSON.stringify(user));
       window.dispatchEvent(new Event("auth-change"));
       router.push(redirectTo);
@@ -300,9 +300,14 @@ function SolicitudForm() {
 // ── Página ────────────────────────────────────────────────────────────────────
 
 function TiendaLoginContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") ?? "/tienda/clases";
+  const redirectTo = searchParams.get("redirect") ?? "/tienda";
   const [tab, setTab] = useState<"login" | "solicitud" | "olvide">("login");
+
+  useEffect(() => {
+    if (isClientLoggedIn()) router.replace(redirectTo);
+  }, [router, redirectTo]);
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center">

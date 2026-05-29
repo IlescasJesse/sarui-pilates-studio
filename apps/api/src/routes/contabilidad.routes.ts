@@ -48,7 +48,7 @@ router.post('/cuentas', requireRole('ADMIN'), async (req: Request, res: Response
 // DELETE /api/v1/contabilidad/cuentas/:id — solo ADMIN (soft)
 router.delete('/cuentas/:id', requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await prisma.cuentaContable.update({ where: { id: req.params.id }, data: { isActive: false } });
+    await prisma.cuentaContable.update({ where: { id: req.params.id as string }, data: { isActive: false } });
     ApiSuccess(res, { mensaje: 'Cuenta desactivada' });
   } catch (error) { next(error); }
 });
@@ -108,7 +108,7 @@ router.post('/gastos', async (req: Request, res: Response, next: NextFunction) =
 // DELETE /api/v1/contabilidad/gastos/:id — solo ADMIN
 router.delete('/gastos/:id', requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await prisma.gasto.delete({ where: { id: req.params.id } });
+    await prisma.gasto.delete({ where: { id: req.params.id as string } });
     ApiSuccess(res, { mensaje: 'Gasto eliminado' });
   } catch (error) { next(error); }
 });
@@ -170,8 +170,47 @@ router.post('/ingresos', async (req: Request, res: Response, next: NextFunction)
 // DELETE /api/v1/contabilidad/ingresos/:id — solo ADMIN
 router.delete('/ingresos/:id', requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await prisma.ingreso.delete({ where: { id: req.params.id } });
+    await prisma.ingreso.delete({ where: { id: req.params.id as string } });
     ApiSuccess(res, { mensaje: 'Ingreso eliminado' });
+  } catch (error) { next(error); }
+});
+
+// ── Cortes de Caja ───────────────────────────────────────────
+
+// GET /api/v1/contabilidad/cortes-caja?mes=5&anio=2026&instructorId=xxx
+router.get('/cortes-caja', requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { mes, anio, instructorId } = req.query as Record<string, string>;
+
+    const where: Record<string, any> = {};
+    if (mes && anio) {
+      where.fecha = {
+        gte: new Date(Number(anio), Number(mes) - 1, 1),
+        lte: new Date(Number(anio), Number(mes), 0, 23, 59, 59),
+      };
+    }
+    if (instructorId) where.instructorId = instructorId;
+
+    const cortes = await prisma.corteCaja.findMany({
+      where,
+      include: {
+        clase: { select: { title: true, startAt: true, endAt: true } },
+        instructor: { select: { firstName: true, lastName: true } },
+      },
+      orderBy: { fecha: 'desc' },
+    });
+
+    const totales = cortes.reduce(
+      (acc, c) => ({
+        ingresoDirecto:   acc.ingresoDirecto   + Number(c.ingresoDirecto),
+        ingresoMembresia: acc.ingresoMembresia + Number(c.ingresoMembresia),
+        ingresoTotal:     acc.ingresoTotal     + Number(c.ingresoTotal),
+        reservaciones:    acc.reservaciones    + c.totalReservaciones,
+      }),
+      { ingresoDirecto: 0, ingresoMembresia: 0, ingresoTotal: 0, reservaciones: 0 }
+    );
+
+    ApiSuccess(res, { cortes, totales });
   } catch (error) { next(error); }
 });
 
@@ -187,7 +226,7 @@ router.get('/reporte', requireRole('ADMIN'), async (req: Request, res: Response,
     const fin    = new Date(anio, mes, 0, 23, 59, 59);
     const rango  = { gte: inicio, lte: fin };
 
-    const [gastos, ingresos, membresiasPagadas] = await Promise.all([
+    const [gastos, ingresos, membresiasPagadas, cortesCaja] = await Promise.all([
       prisma.gasto.findMany({
         where: { fecha: rango },
         include: { cuentaContable: { select: { codigo: true, nombre: true, tipo: true } } },
@@ -196,19 +235,22 @@ router.get('/reporte', requireRole('ADMIN'), async (req: Request, res: Response,
         where: { fecha: rango },
         include: { cuentaContable: { select: { codigo: true, nombre: true, tipo: true } } },
       }),
-      // Ingresos automáticos: membresías pagadas en el período
       prisma.membership.findMany({
         where: { createdAt: rango, paymentStatus: 'PAID' },
         select: { pricePaid: true, createdAt: true, package: { select: { name: true } } },
       }),
+      prisma.corteCaja.findMany({
+        where: { fecha: rango },
+        select: { ingresoDirecto: true, ingresoMembresia: true, ingresoTotal: true, totalReservaciones: true },
+      }),
     ]);
 
-    const totalGastos   = gastos.reduce((s, g) => s + Number(g.monto), 0);
-    const totalIngresos = ingresos.reduce((s, i) => s + Number(i.monto), 0);
-    const totalMembresias = membresiasPagadas.reduce((s, m) => s + Number(m.pricePaid), 0);
+    const totalGastos       = gastos.reduce((s, g) => s + Number(g.monto), 0);
+    const totalIngresos     = ingresos.reduce((s, i) => s + Number(i.monto), 0);
+    const totalMembresias   = membresiasPagadas.reduce((s, m) => s + Number(m.pricePaid), 0);
+    const totalCortesCaja   = cortesCaja.reduce((s, c) => s + Number(c.ingresoTotal), 0);
     const totalIngresosConAuto = totalIngresos + totalMembresias;
 
-    // Desglose por cuenta
     const desglosePorCuenta = [
       ...gastos.map(g => ({ ...g.cuentaContable, monto: Number(g.monto), tipo: 'egreso' as const })),
       ...ingresos.map(i => ({ ...i.cuentaContable, monto: Number(i.monto), tipo: 'ingreso' as const })),
@@ -226,6 +268,8 @@ router.get('/reporte', requireRole('ADMIN'), async (req: Request, res: Response,
       balance: totalIngresosConAuto - totalGastos,
       ingresosRegistrados: totalIngresos,
       ingresosMembresias: totalMembresias,
+      ingresosCortesCaja: totalCortesCaja,
+      totalClasesConCorte: cortesCaja.length,
       desglosePorCuenta: Object.values(desglosePorCuenta),
       gastos,
       ingresos,

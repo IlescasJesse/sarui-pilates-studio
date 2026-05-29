@@ -4,14 +4,15 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { BookOpen, TrendingUp, TrendingDown, DollarSign, Plus, Trash2, Loader2, RefreshCw } from "lucide-react";
+import { BookOpen, TrendingUp, TrendingDown, DollarSign, Plus, Trash2, Loader2, RefreshCw, BarChart3 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  useCuentas, useGastos, useIngresos, useReporteContable,
+  useCuentas, useGastos, useIngresos, useReporteContable, useCortesCaja,
   useCrearGasto, useCrearIngreso, useEliminarGasto, useEliminarIngreso,
   useCrearCuenta,
   type TipoCuenta, type OrigenIngreso,
@@ -68,7 +69,7 @@ const ORIGEN_LABELS: Record<OrigenIngreso, string> = {
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
-type Tab = "reporte" | "gastos" | "ingresos" | "cuentas";
+type Tab = "reporte" | "gastos" | "ingresos" | "cortes" | "cuentas";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n);
@@ -86,9 +87,10 @@ export default function ContabilidadPage() {
   const [ingresoOpen, setIngresoOpen] = useState(false);
   const [cuentaOpen, setCuentaOpen] = useState(false);
 
-  const { data: reporte, isLoading: loadingReporte, refetch } = useReporteContable(mes, anio);
+  const { data: reporte,  isLoading: loadingReporte,  refetch } = useReporteContable(mes, anio);
   const { data: gastos,   isLoading: loadingGastos   } = useGastos(mes, anio);
   const { data: ingresos, isLoading: loadingIngresos } = useIngresos(mes, anio);
+  const { data: cortesData, isLoading: loadingCortes } = useCortesCaja(mes, anio);
   const { data: cuentas,  isLoading: loadingCuentas  } = useCuentas();
   const { data: cuentasGasto  } = useCuentas("GASTO");
   const { data: cuentasCosto  } = useCuentas("COSTO");
@@ -136,10 +138,11 @@ export default function ContabilidadPage() {
   });
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: "reporte",   label: "Resumen" },
-    { id: "gastos",    label: "Egresos" },
-    { id: "ingresos",  label: "Ingresos" },
-    { id: "cuentas",   label: "Catálogo SAT" },
+    { id: "reporte",  label: "Resumen" },
+    { id: "gastos",   label: "Egresos" },
+    { id: "ingresos", label: "Ingresos" },
+    { id: "cortes",   label: "Cortes de Caja" },
+    { id: "cuentas",  label: "Catálogo SAT" },
   ];
 
   return (
@@ -156,6 +159,10 @@ export default function ContabilidadPage() {
           </div>
         </div>
         {/* Selector de período */}
+        <Link href="/contabilidad/finanzas"
+          className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-[#254F40]/30 text-[#254F40] hover:bg-[#254F40]/5 transition-colors">
+          <BarChart3 className="w-4 h-4" /> Análisis financiero
+        </Link>
         <div className="flex items-center gap-2">
           <select
             value={mes}
@@ -205,6 +212,9 @@ export default function ContabilidadPage() {
                         <p className="text-xs text-emerald-700 font-medium uppercase tracking-wide">Total ingresos</p>
                         <p className="text-2xl font-bold text-emerald-700">{fmt(reporte.totalIngresos)}</p>
                         <p className="text-xs text-emerald-600">Membresías: {fmt(reporte.ingresosMembresias)}</p>
+                        {reporte.ingresosCortesCaja > 0 && (
+                          <p className="text-xs text-emerald-600">Cortes caja: {fmt(reporte.ingresosCortesCaja)} ({reporte.totalClasesConCorte} clases)</p>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -348,6 +358,68 @@ export default function ContabilidadPage() {
               )}
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* TAB: Cortes de Caja */}
+      {tab === "cortes" && (
+        <div className="space-y-4">
+          {loadingCortes ? (
+            <div className="flex justify-center py-16"><Loader2 className="animate-spin w-6 h-6 text-[#254F40]" /></div>
+          ) : (
+            <>
+              {cortesData && cortesData.cortes.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { label: "Ingreso directo", value: cortesData.totales.ingresoDirecto },
+                    { label: "Ingreso membresía", value: cortesData.totales.ingresoMembresia },
+                    { label: "Total", value: cortesData.totales.ingresoTotal },
+                    { label: "Reservaciones", value: cortesData.totales.reservaciones, currency: false },
+                  ].map(({ label, value, currency = true }) => (
+                    <Card key={label}>
+                      <CardContent className="p-4">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
+                        <p className="text-xl font-bold text-[#254F40]">{currency ? fmt(value) : value}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+              <Card>
+                <CardContent className="p-0">
+                  <table className="sarui-table w-full">
+                    <thead>
+                      <tr>
+                        <th>Clase</th>
+                        <th>Instructor</th>
+                        <th>Fecha</th>
+                        <th className="text-right">Reserv.</th>
+                        <th className="text-right">Directo</th>
+                        <th className="text-right">Membresía</th>
+                        <th className="text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(cortesData?.cortes ?? []).map((c) => (
+                        <tr key={c.id}>
+                          <td className="font-medium">{c.clase.title ?? "Clase"}</td>
+                          <td className="text-sm text-muted-foreground">{c.instructor.firstName} {c.instructor.lastName}</td>
+                          <td className="text-sm text-muted-foreground">{new Date(c.fecha).toLocaleDateString("es-MX", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
+                          <td className="text-right">{c.totalReservaciones}</td>
+                          <td className="text-right text-emerald-600">{fmt(Number(c.ingresoDirecto))}</td>
+                          <td className="text-right text-blue-600">{fmt(Number(c.ingresoMembresia))}</td>
+                          <td className="text-right font-semibold text-[#254F40]">{fmt(Number(c.ingresoTotal))}</td>
+                        </tr>
+                      ))}
+                      {(cortesData?.cortes ?? []).length === 0 && (
+                        <tr><td colSpan={7} className="text-center py-8 text-muted-foreground text-sm">Sin cortes en {MESES[mes - 1]} {anio}</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
       )}
 

@@ -85,8 +85,9 @@ router.post(
 // GET /api/v1/tipo-membresias/:id
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const id = req.params.id as string;
     const tipoMembresia = await prisma.tipoMembresia.findUnique({
-      where: { id: req.params.id },
+      where: { id },
       include: {
         actividades: {
           include: { tipoActividad: { select: { id: true, nombre: true, color: true } } },
@@ -122,21 +123,22 @@ router.put(
 
       const { actividadIds, ...rest } = parseResult.data;
 
+      const tipoMembresiaId = req.params.id as string;
       const tipoMembresia = await prisma.$transaction(async (tx) => {
         const updated = await tx.tipoMembresia.update({
-          where: { id: req.params.id },
+          where: { id: tipoMembresiaId },
           data: rest,
         });
 
         if (actividadIds !== undefined) {
           await tx.tipoMembresiaActividad.deleteMany({
-            where: { tipoMembresiaId: req.params.id },
+            where: { tipoMembresiaId },
           });
           if (actividadIds.length > 0) {
             await tx.tipoMembresiaActividad.createMany({
-              data: actividadIds.map((id) => ({
-                tipoMembresiaId: req.params.id,
-                tipoActividadId: id,
+              data: actividadIds.map((actId) => ({
+                tipoMembresiaId,
+                tipoActividadId: actId,
               })),
             });
           }
@@ -166,7 +168,7 @@ router.delete(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       await prisma.tipoMembresia.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: { isActive: false, deletedAt: new Date() },
       });
 

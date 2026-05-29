@@ -71,8 +71,9 @@ router.post(
 // GET /api/v1/tipo-actividades/:id
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const id = req.params.id as string;
     const tipoActividad = await prisma.tipoActividad.findUnique({
-      where: { id: req.params.id },
+      where: { id },
     });
 
     if (!tipoActividad) {
@@ -102,7 +103,7 @@ router.put(
       }
 
       const tipoActividad = await prisma.tipoActividad.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: parseResult.data,
       });
 
@@ -120,7 +121,7 @@ router.delete(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       await prisma.tipoActividad.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: { isActive: false, deletedAt: new Date() },
       });
 

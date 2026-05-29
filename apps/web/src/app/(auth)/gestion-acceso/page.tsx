@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 
 const loginSchema = z.object({
@@ -83,7 +84,7 @@ export default function LoginPage() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
           >
-            <span className="text-[#FDFFEC] font-bold text-2xl tracking-[0.15em]">SARUI</span>
+            <Image src="/sarui-logo.svg" alt="Sarui Pilates Studio" width={160} height={59} />
           </motion.div>
 
           <motion.div
@@ -123,7 +124,7 @@ export default function LoginPage() {
 
         {/* Logo solo en móvil */}
           <div className="flex flex-col items-center gap-2 mb-8 md:hidden">
-            <span className="text-[#254F40] font-bold text-xl tracking-[0.15em]">SARUI</span>
+            <Image src="/sarui-logo-dark.svg" alt="Sarui Pilates Studio" width={130} height={48} />
             <p className="text-xs text-[#254F40]/60">Pilates Studio · Oaxaca, México</p>
         </div>
 

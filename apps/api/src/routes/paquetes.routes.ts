@@ -85,7 +85,7 @@ router.post(
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const paquete = await prisma.package.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       include: {
         tipoActividad: { select: { id: true, nombre: true, color: true } },
       },
@@ -118,7 +118,7 @@ router.put(
       }
 
       const paquete = await prisma.package.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: parseResult.data,
       });
 
@@ -136,7 +136,7 @@ router.delete(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       await prisma.package.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: { isActive: false },
       });
 

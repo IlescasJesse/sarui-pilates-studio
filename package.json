@@ -6,12 +6,12 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace=apps/web\" \"npm run dev --workspace=apps/api\"",
-    "dev:web": "npm run dev --workspace=apps/web",
-    "dev:api": "npm run dev --workspace=apps/api",
-    "build": "npm run build --workspace=apps/web && npm run build --workspace=apps/api",
-    "migrate": "npm run migrate --workspace=apps/api",
-    "seed": "npm run seed --workspace=apps/api"
+    "dev": "concurrently \"npm run dev -w @sarui/web\" \"npm run dev -w sarui-api\"",
+    "dev:web": "npm run dev -w @sarui/web",
+    "dev:api": "npm run dev -w sarui-api",
+    "build": "npm run build -w @sarui/web && npm run build -w sarui-api",
+    "migrate": "npm run migrate -w sarui-api",
+    "seed": "npm run seed -w sarui-api"
   },
   "devDependencies": {
     "concurrently": "^8.2.0"

@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { fadeInUp } from "@/lib/animations";
 import { Instagram, Facebook, Phone, MapPin } from "lucide-react";
 
@@ -55,7 +56,7 @@ export function FooterSection() {
         >
           <div>
             <div className="mb-4">
-              <span className="text-[#FDFFEC] font-bold text-xl tracking-[0.15em]">SARUI</span>
+              <Image src="/sarui-logo.svg" alt="Sarui Pilates Studio" width={160} height={59} />
             </div>
             <p className="text-[#FDFFEC]/50 text-sm max-w-xs leading-relaxed font-display font-light text-lg">
               Mueve tu cuerpo.{" "}

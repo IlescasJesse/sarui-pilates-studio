@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import Image from "next/image";
 import { Menu, X } from "lucide-react";
 
 const NAV_SECTIONS = [
@@ -65,7 +66,7 @@ export function LandingNav() {
         <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
           {/* Logo */}
           <button onClick={() => scrollTo("hero")} className="flex items-center gap-2.5 group flex-shrink-0">
-            <span className="text-[#FDFFEC] font-bold text-lg tracking-[0.15em]">SARUI</span>
+            <Image src="/sarui-logo.svg" alt="Sarui Pilates Studio" width={120} height={44} priority />
           </button>
 
           {/* Desktop nav */}

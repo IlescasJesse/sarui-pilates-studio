@@ -1,61 +1,65 @@
 // Genera credencial de acceso estilo tarjeta horizontal con branding Sarui
 export async function buildBrandedCanvas(qrImage: string, name: string): Promise<HTMLCanvasElement> {
-  const W = 900, H = 500;
+  const SCALE = 2; // retina quality
+  const W = 900 * SCALE, H = 500 * SCALE;
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d")!;
+  ctx.scale(SCALE, SCALE);
 
-  // ── Fondo general ─────────────────────────────────────────────────────────
+  const RW = 900, RH = 500; // logical dimensions
+
+  // ── Fondo general ────────────────────────────────────────────────────────────
   ctx.fillStyle = "#f4f8f6";
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, RW, RH);
 
-  // ── Panel izquierdo verde ──────────────────────────────────────────────────
+  // ── Panel izquierdo verde ─────────────────────────────────────────────────
   const panelW = 260;
   ctx.fillStyle = "#254F40";
-  ctx.fillRect(0, 0, panelW, H);
+  ctx.fillRect(0, 0, panelW, RH);
 
-  // Círculo decorativo (fondo sutil)
+  // Círculo decorativo
   ctx.beginPath();
-  ctx.arc(panelW / 2, H - 30, 200, 0, Math.PI * 2);
+  ctx.arc(panelW / 2, RH - 30, 200, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(255,255,255,0.04)";
   ctx.fill();
 
   // "SARUI"
   ctx.fillStyle = "#F6FFB5";
-  ctx.font = "bold 48px 'Arial', sans-serif";
+  ctx.font = "bold 52px 'Arial', sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("SARUI", panelW / 2, 140);
+  ctx.fillText("SARUI", panelW / 2, 130);
 
   // "PILATES STUDIO"
   ctx.fillStyle = "#a7c4b5";
-  ctx.font = "bold 14px 'Arial', sans-serif";
-  ctx.letterSpacing = "3px";
-  ctx.fillText("PILATES STUDIO", panelW / 2, 168);
+  ctx.font = "bold 13px 'Arial', sans-serif";
+  ctx.letterSpacing = "4px";
+  ctx.fillText("PILATES STUDIO", panelW / 2, 158);
+  ctx.letterSpacing = "0px";
 
   // Línea separadora
   ctx.fillStyle = "#3d7a62";
-  ctx.fillRect(40, 188, panelW - 80, 1);
+  ctx.fillRect(40, 176, panelW - 80, 1);
 
   // "CREDENCIAL DE ACCESO"
   ctx.fillStyle = "#6bab90";
-  ctx.font = "11px 'Arial', sans-serif";
-  ctx.fillText("CREDENCIAL DE ACCESO", panelW / 2, 212);
+  ctx.font = "10px 'Arial', sans-serif";
+  ctx.fillText("CREDENCIAL DE ACCESO", panelW / 2, 198);
 
-  // sarui.com.mx abajo
+  // sarui.com.mx
   ctx.fillStyle = "#5a8f78";
   ctx.font = "12px 'Arial', sans-serif";
-  ctx.fillText("sarui.com.mx", panelW / 2, H - 30);
+  ctx.fillText("sarui.com.mx", panelW / 2, RH - 28);
 
-  // ── QR code ───────────────────────────────────────────────────────────────
-  const qrSize = 240;
+  // ── QR code ──────────────────────────────────────────────────────────────────
+  const qrSize = 230;
   const qrX = panelW + 50;
-  const qrY = (H - qrSize) / 2;
+  const qrY = (RH - qrSize) / 2;
 
-  // Sombra/contenedor del QR
   ctx.fillStyle = "#ffffff";
-  ctx.shadowColor = "rgba(0,0,0,0.08)";
-  ctx.shadowBlur = 16;
+  ctx.shadowColor = "rgba(0,0,0,0.10)";
+  ctx.shadowBlur = 18;
   ctx.beginPath();
   roundRect(ctx, qrX - 14, qrY - 14, qrSize + 28, qrSize + 28, 14);
   ctx.fill();
@@ -67,62 +71,58 @@ export async function buildBrandedCanvas(qrImage: string, name: string): Promise
   await new Promise<void>((res) => { img.onload = () => res(); });
   ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
 
-  // ── Sección derecha: nombre y detalles ────────────────────────────────────
-  const rightX = qrX + qrSize + 50;
-  const rightW = W - rightX - 30;
-  const centerRightX = rightX + rightW / 2;
+  // ── Sección derecha ───────────────────────────────────────────────────────
+  const rightX = qrX + qrSize + 44;
+  const rightW = RW - rightX - 28;
+  const cx = rightX + rightW / 2;
 
-  // Badge "SOCIO ACTIVO"
-  const badgeW = 120, badgeH = 28, badgeX = rightX, badgeY = qrY;
+  // Badge "● SOCIO ACTIVO"
+  const badgeW = 148, badgeH = 30, badgeY = qrY;
   ctx.fillStyle = "#254F40";
   ctx.beginPath();
-  roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 14);
+  roundRect(ctx, rightX, badgeY, badgeW, badgeH, 15);
   ctx.fill();
   ctx.fillStyle = "#F6FFB5";
   ctx.font = "bold 11px 'Arial', sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText("● SOCIO ACTIVO", badgeX + 14, badgeY + 18);
+  ctx.fillText("● SOCIO ACTIVO", rightX + 16, badgeY + 20);
 
-  // Nombre del cliente
+  // Nombre
   ctx.fillStyle = "#1a3d30";
-  ctx.font = "bold 26px 'Arial', sans-serif";
   ctx.textAlign = "center";
-  // Partir nombre en dos líneas si es largo
-  const nameParts = name.split(" ");
-  if (nameParts.length >= 2 && name.length > 18) {
+  const nameParts = name.trim().split(/\s+/);
+  if (nameParts.length >= 2 && name.length > 16) {
     const mid = Math.ceil(nameParts.length / 2);
-    const line1 = nameParts.slice(0, mid).join(" ");
-    const line2 = nameParts.slice(mid).join(" ");
-    ctx.fillText(line1, centerRightX, qrY + 80);
-    ctx.fillText(line2, centerRightX, qrY + 112);
+    ctx.font = "bold 24px 'Arial', sans-serif";
+    ctx.fillText(nameParts.slice(0, mid).join(" "), cx, qrY + 76);
+    ctx.fillText(nameParts.slice(mid).join(" "), cx, qrY + 104);
   } else {
-    ctx.fillText(name, centerRightX, qrY + 90);
+    ctx.font = "bold 26px 'Arial', sans-serif";
+    ctx.fillText(name, cx, qrY + 84);
   }
 
   // Línea decorativa
   ctx.fillStyle = "#d1e8de";
-  ctx.fillRect(rightX, qrY + 130, rightW, 1);
+  ctx.fillRect(rightX, qrY + 122, rightW, 1);
 
   // Instrucción
   ctx.fillStyle = "#4a7a65";
   ctx.font = "13px 'Arial', sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("Presenta al ingresar", centerRightX, qrY + 158);
-  ctx.fillText("al estudio", centerRightX, qrY + 176);
+  ctx.fillText("Presenta al ingresar", cx, qrY + 150);
+  ctx.fillText("al estudio", cx, qrY + 168);
 
-  // Ícono QR pequeño decorativo
+  // Ícono decorativo
   ctx.fillStyle = "#c5dfd5";
-  ctx.font = "28px 'Arial', sans-serif";
-  ctx.fillText("▦", centerRightX, qrY + 224);
+  ctx.font = "26px 'Arial', sans-serif";
+  ctx.fillText("▦", cx, qrY + 216);
 
   // ── Franja inferior ───────────────────────────────────────────────────────
   ctx.fillStyle = "#254F40";
-  ctx.fillRect(0, H - 12, W, 12);
+  ctx.fillRect(0, RH - 12, RW, 12);
 
   return canvas;
 }
 
-// Helper para rectángulos redondeados (compatible sin roundRect nativo)
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.moveTo(x + r, y);
   ctx.lineTo(x + w - r, y);

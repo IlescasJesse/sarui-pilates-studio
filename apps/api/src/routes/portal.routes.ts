@@ -8,7 +8,7 @@ import { requireRole } from '../middlewares/role.middleware';
 import { createPreference, getPayment, createPackagePreference } from '../services/mercadopago.service';
 import { sendSetupPasswordEmail, sendResetPasswordEmail } from '../services/email.service';
 import { activateMembershipFromPayment } from '../services/membership.service';
-import { hashPassword } from '../utils/bcrypt';
+import { hashPassword, comparePassword } from '../utils/bcrypt';
 import QRCode from 'qrcode';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
@@ -87,7 +87,7 @@ router.get('/clases', async (req: Request, res: Response, next: NextFunction) =>
 router.get('/clases/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const clase = await prisma.class.findUnique({
-      where: { id: req.params.id, deletedAt: null, isActive: true, isCancelled: false },
+      where: { id: req.params.id as string, deletedAt: null, isActive: true, isCancelled: false },
       include: {
         instructor: { select: { id: true, firstName: true, lastName: true } },
         tipoActividad: {
@@ -198,7 +198,7 @@ router.get('/solicitudes', authMiddleware, requireRole('ADMIN'), async (req: Req
 // PATCH /api/v1/portal/solicitudes/:id  — solo ADMIN (aprobar/rechazar)
 router.patch('/solicitudes/:id', authMiddleware, requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { status, force } = req.body as { status: string; force?: boolean };
     if (!['APROBADA', 'RECHAZADA'].includes(status)) {
       ApiError(res, 'INVALID_STATUS', 'Status debe ser APROBADA o RECHAZADA', 400);
@@ -712,6 +712,39 @@ router.get('/mi-qr', async (req: Request, res: Response, next: NextFunction) => 
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/v1/portal/cambiar-contrasena
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/cambiar-contrasena', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const schema = z.object({
+      currentPassword: z.string().min(1),
+      newPassword: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      ApiError(res, 'VALIDATION_ERROR', parsed.error.errors[0]?.message ?? 'Datos inválidos', 400);
+      return;
+    }
+    const { currentPassword, newPassword } = parsed.data;
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { password: true } });
+    if (!user) {
+      ApiError(res, 'NOT_FOUND', 'Usuario no encontrado', 404);
+      return;
+    }
+    const valid = await comparePassword(currentPassword, user.password);
+    if (!valid) {
+      ApiError(res, 'INVALID_PASSWORD', 'Contraseña actual incorrecta', 400);
+      return;
+    }
+    const hashed = await hashPassword(newPassword);
+    await prisma.user.update({ where: { id: req.user!.id }, data: { password: hashed } });
+    ApiSuccess(res, { message: 'Contraseña actualizada' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 const reservaSchema = z.object({
   claseId: z.string().trim().min(1),
   pagarAhora: z.boolean(),
@@ -742,10 +775,7 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
 
     const { claseId, pagarAhora, portalWaConfirmed, pagoParcial, montoPagado } = parse.data;
 
-    if (!pagarAhora && !portalWaConfirmed) {
-      ApiError(res, 'WA_REQUIRED', 'Debes confirmar que ya contactaste al estudio por WhatsApp', 400);
-      return;
-    }
+    // WA confirmation only required if user has no membership (handled below)
 
     // Obtener el cliente asociado al usuario autenticado
     const client = await prisma.client.findUnique({
@@ -783,6 +813,7 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
       include: {
         tipoActividad: {
           select: {
+            id: true,
             nombre: true,
             paquetes: { where: { sessions: 1, isActive: true }, select: { price: true }, take: 1 },
           },
@@ -872,12 +903,36 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
       ApiSuccess(res, {
         reservacionId: reservacion.id,
         preferenceId: preference.id,
-        checkoutUrl: preference.init_point,
+        checkoutUrl: preference.checkoutUrl,
         tipo: 'CON_PAGO',
       }, 201);
 
     } else {
-      // ── Flujo sin pago (solicitud) ────────────────────────────────────────
+      // ── Flujo sin pago (solicitud) — consume sesión de membresía activa ──────
+      // Prefer membership matching clase's tipoActividad; fall back to any active membership
+      const tipoActividadId = clase.tipoActividad?.id ?? null;
+      const membresia = await prisma.membership.findFirst({
+        where: {
+          clientId: client.id,
+          status: 'ACTIVE',
+          sessionsRemaining: { gt: 0 },
+          expiresAt: { gt: now },
+          deletedAt: null,
+          ...(tipoActividadId ? { package: { tipoActividadId } } : {}),
+        },
+        orderBy: { expiresAt: 'asc' },
+      });
+
+      if (!membresia) {
+        if (!portalWaConfirmed) {
+          ApiError(res, 'MEMBERSHIP_REQUIRED', 'No tienes sesiones disponibles para este tipo de clase. Contacta al estudio por WhatsApp para reservar.', 400);
+          return;
+        }
+        // WA solicitud without matching membership — booking requires staff approval
+        ApiError(res, 'MEMBERSHIP_REQUIRED', 'No tienes sesiones disponibles en tu membresía.', 400);
+        return;
+      }
+
       const reservacion = await prisma.$transaction(async (tx) => {
         const updated = await tx.$executeRaw`
           UPDATE \`classes\` SET spotsBooked = spotsBooked + 1
@@ -885,13 +940,23 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
         `;
         if (updated === 0) throw Object.assign(new Error('CLASS_FULL'), { code: 'CLASS_FULL' });
 
+        // Consume the session
+        await tx.membership.update({
+          where: { id: membresia.id },
+          data: {
+            sessionsRemaining: { decrement: 1 },
+            sessionsUsed: { increment: 1 },
+          },
+        });
+
         const r = await tx.reservation.create({
           data: {
             clientId: client.id,
             classId: claseId,
+            membershipId: membresia.id,
             origin: 'PORTAL_REQUEST',
-            status: 'PENDING_APPROVAL',
-            portalWaConfirmed: true,
+            status: 'CONFIRMED',
+            portalWaConfirmed: !!portalWaConfirmed,
           },
           include: {
             class: {
@@ -924,6 +989,7 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
 // ─────────────────────────────────────────────────────────────────────────────
 router.delete('/reservaciones/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const reservacionId = req.params.id as string;
     const client = await prisma.client.findUnique({
       where: { userId: req.user!.id, deletedAt: null },
     });
@@ -934,7 +1000,7 @@ router.delete('/reservaciones/:id', async (req: Request, res: Response, next: Ne
     }
 
     const reservacion = await prisma.reservation.findUnique({
-      where: { id: req.params.id },
+      where: { id: reservacionId },
       include: { class: { select: { startAt: true } } },
     });
 
@@ -966,7 +1032,7 @@ router.delete('/reservaciones/:id', async (req: Request, res: Response, next: Ne
 
     await prisma.$transaction(async (tx) => {
       await tx.reservation.update({
-        where: { id: req.params.id },
+        where: { id: reservacionId },
         data: {
           status: 'CANCELLED',
           cancelledAt: ahora,
@@ -1124,7 +1190,7 @@ router.post('/comprar-paquete', async (req: Request, res: Response, next: NextFu
       return;
     }
 
-    ApiSuccess(res, { preferenceId: preference.id, checkoutUrl: preference.init_point });
+    ApiSuccess(res, { preferenceId: preference.id, checkoutUrl: preference.checkoutUrl });
   } catch (error) {
     next(error);
   }

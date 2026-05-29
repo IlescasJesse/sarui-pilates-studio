@@ -181,3 +181,105 @@
 3. Ranking de clases más rentables
 4. Gráficos de tendencias de pago (mensual/semanal)
 5. Integración con datos existentes de pagos y membresías
+
+---
+
+## v0.5 — Automatización Operativa
+
+### Phase 18: Job Scheduler Infrastructure
+**Goal**: Instalar y configurar infraestructura de tareas asíncronas recurrentes en el API (node-cron + worker pattern sobre Express)
+**Status**: pending
+**Priority**: critical — bloquea fases 19–22
+
+**Success Criteria:**
+1. `node-cron` instalado y configurado en el API
+2. Módulo `src/workers/` con patrón base para registrar jobs
+3. Jobs se ejecutan en proceso separado (o child process) para no bloquear el servidor HTTP
+4. Logs de ejecución de jobs en base de datos (tabla `JobLog`: job_name, status, ran_at, duration_ms, error)
+5. Endpoint admin `GET /api/v1/admin/jobs/logs` para inspeccionar ejecuciones
+
+**Notes:**
+- Usar `node-cron` (ya compatible con Express/Node, sin Redis)
+- Si en el futuro escala → migrar a BullMQ. Por ahora node-cron es suficiente.
+- Jobs deben ser idempotentes y tener try/catch con log de error
+
+---
+
+### Phase 19: Horario Automático Semanal
+**Goal**: Job que cada lunes copia las clases de la semana anterior y crea el horario de la semana entrante automáticamente
+**Status**: pending
+**Priority**: high
+
+**Success Criteria:**
+1. Job corre automáticamente cada lunes a las 06:00 (hora México)
+2. Toma todas las clases de la semana anterior (lun–dom) y las duplica para la semana actual mismos días/horarios/instructor/capacidad
+3. Las clases duplicadas inician con `status: PROGRAMADA` y `spotsBooked: 0`
+4. Si ya existen clases en esa semana, el job NO duplica (idempotente)
+5. Endpoint manual `POST /api/v1/admin/jobs/generar-horario` para ejecutar bajo demanda
+6. El dashboard muestra confirmación cuando el horario se auto-generó
+
+**Notes:**
+- Offset de fechas: `addWeeks(claseOriginal.fecha, 1)` con date-fns
+- Preservar: instructor, tipo, capacidad, hora inicio, hora fin, descripción
+- NO preservar: reservaciones, asistencias, spotsBooked
+
+---
+
+### Phase 20: Corte de Caja por Clase
+**Goal**: Calcular y registrar el corte de caja de cada clase basado en las reservaciones confirmadas y membresías utilizadas
+**Status**: pending
+**Priority**: high
+
+**Success Criteria:**
+1. Job diario a las 23:30 procesa clases terminadas del día y genera su corte
+2. Corte incluye: total reservaciones, ingresos directos (pago en efectivo/MP por clase), ingresos de membresía prorrateados, instructor responsable
+3. Tabla `CorteCaja`: id, claseId, fecha, totalReservaciones, ingresoDirecto, ingresoMembresia, ingresoTotal, creadoEn
+4. Endpoint `GET /api/v1/admin/cortes-caja?from=&to=&instructorId=` con filtros
+5. Vista en dashboard: tabla de cortes con totales por período
+
+**Notes:**
+- Ingreso membresía = precio_paquete / sesiones_totales × sesiones_usadas_en_esa_clase
+- Clases con status CANCELADA se excluyen del corte
+- Corte manual: `POST /api/v1/admin/cortes-caja/generar` con body `{ claseId }`
+
+---
+
+### Phase 21: Comisiones e Informe Contable
+**Goal**: Calcular comisiones de instructores por clases impartidas y generar informe contable mensual consolidado
+**Status**: pending
+**Priority**: high
+
+**Success Criteria:**
+1. Tabla `Comision`: id, instructorId, claseId, monto, porcentaje, periodo, status (PENDIENTE/PAGADA), creadoEn
+2. Job mensual (día 1 a las 07:00) calcula comisiones del mes anterior por instructor
+3. Comisión = porcentaje configurable por instructor × ingresoTotal del corte de caja de cada clase suya
+4. Endpoint `GET /api/v1/admin/comisiones?mes=&instructorId=` con filtros
+5. Endpoint `PATCH /api/v1/admin/comisiones/:id/pagar` marca comisión como PAGADA
+6. Informe contable mensual: `GET /api/v1/admin/contabilidad/informe?mes=` — devuelve ingresos, egresos, comisiones, balance neto
+7. Vista dashboard: tabla de comisiones + resumen mensual con gráfica de barras
+
+**Notes:**
+- Porcentaje de comisión configurable en tabla `Instructor` (campo `comisionPct DECIMAL(5,2)`)
+- Informe exportable a CSV desde el frontend
+- Integrar con registros `Ingreso`/`Egreso` ya existentes en el modelo contable
+
+---
+
+### Phase 22: Módulo de Inventario
+**Goal**: Gestión básica de inventario de materiales del estudio (mats, blocks, ligas, etc.) con alertas de stock mínimo
+**Status**: pending
+**Priority**: medium
+
+**Success Criteria:**
+1. Tabla `Inventario`: id, nombre, categoria, cantidad, stockMinimo, unidad, ultimaActualizacion
+2. Tabla `MovimientoInventario`: id, inventarioId, tipo (ENTRADA/SALIDA/AJUSTE), cantidad, nota, creadoEn, usuarioId
+3. CRUD completo: `GET/POST /api/v1/admin/inventario`, `GET/PATCH/DELETE /api/v1/admin/inventario/:id`
+4. Endpoint `POST /api/v1/admin/inventario/:id/movimiento` registra entrada o salida
+5. Job diario a las 08:00 revisa items con `cantidad <= stockMinimo` y los marca con alerta
+6. Endpoint `GET /api/v1/admin/inventario/alertas` devuelve items bajo stock mínimo
+7. Vista dashboard: tabla de inventario con badge de alerta rojo en items críticos, historial de movimientos por item
+
+**Notes:**
+- Categorías sugeridas: EQUIPAMIENTO, CONSUMIBLE, LIMPIEZA, ADMINISTRATIVO
+- No requiere integración con proveedores en esta fase
+- Alertas visibles en dashboard (badge en sidebar o notificación en header)

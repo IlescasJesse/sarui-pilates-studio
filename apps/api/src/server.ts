@@ -3,11 +3,14 @@ import app from './app';
 import { env } from './config/env';
 import { connectMySQL, disconnectMySQL } from './config/database';
 import { connectMongoDB, disconnectMongoDB } from './config/mongodb';
+import { initScheduler } from './workers';
 
 async function bootstrap(): Promise<void> {
   try {
     await connectMySQL();
     await connectMongoDB();
+
+    initScheduler();
 
     const server = app.listen(env.PORT, 'localhost', () => {
       console.log(`Sarui API running on http://localhost:${env.PORT}`);

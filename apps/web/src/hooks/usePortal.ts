@@ -47,7 +47,7 @@ export function useClasesPortal() {
     queryKey: ["portal", "clases"],
     queryFn: async () => {
       const res = await portalPublicClient.get<{ success: boolean; data: ClasePortal[] }>(
-        "/tienda/clases"
+        "/portal/clases"
       );
       return res.data.data;
     },
@@ -73,7 +73,7 @@ export function useMisAgendas() {
     queryKey: ["portal", "mis-agendas"],
     queryFn: async () => {
       const res = await portalAuthClient.get<{ success: boolean; data: AgendaPortal[] }>(
-        "/tienda/mis-agendas"
+        "/portal/mis-agendas"
       );
       return res.data.data;
     },
@@ -144,6 +144,33 @@ export function useComprarPaquete() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal', 'mis-membresias'] });
+    },
+  });
+}
+
+export interface MiQRData { qrImage: string; name: string; clientId: string; qrCode: string; }
+
+export function useMiQR() {
+  return useQuery({
+    queryKey: ['portal', 'mi-qr'],
+    queryFn: async () => {
+      const res = await portalAuthClient.get<{ success: boolean; data: MiQRData }>('/portal/mi-qr');
+      return res.data.data;
+    },
+    enabled: typeof window !== 'undefined' && !!localStorage.getItem('sarui_token'),
+    staleTime: 300_000,
+  });
+}
+
+export function useCancelarReserva() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (reservaId: string) => {
+      await portalAuthClient.delete(`/portal/reservaciones/${reservaId}`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["portal", "mis-agendas"] });
+      qc.invalidateQueries({ queryKey: ["portal", "mis-membresias"] });
     },
   });
 }

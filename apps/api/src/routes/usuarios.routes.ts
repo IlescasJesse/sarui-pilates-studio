@@ -120,11 +120,11 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 router.patch('/:id/activar', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { isActive } = req.body as { isActive: boolean };
-    if (req.params.id === req.user!.id) {
+    if (req.params.id as string === req.user!.id) {
       ApiError(res, 'FORBIDDEN', 'No puedes desactivar tu propia cuenta', 400);
       return;
     }
-    const user = await prisma.user.update({ where: { id: req.params.id }, data: { isActive } });
+    const user = await prisma.user.update({ where: { id: req.params.id as string }, data: { isActive } });
     ApiSuccess(res, { id: user.id, isActive: user.isActive });
   } catch (error) { next(error); }
 });

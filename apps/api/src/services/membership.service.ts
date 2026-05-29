@@ -16,31 +16,76 @@ export async function activateMembershipFromPayment(
   });
   if (!pkg) throw new Error(`Package ${params.packageId} not found`);
 
-  const expiresAt = new Date(params.paidAt);
-  expiresAt.setDate(expiresAt.getDate() + pkg.validityDays);
-
-  const membership = await tx.membership.upsert({
-    where: { mercadoPagoPaymentId: params.mpPaymentId },
-    create: {
-      clientId: params.clientId,
-      packageId: params.packageId,
-      status: 'ACTIVE',
-      totalSessions: pkg.sessions,
-      sessionsUsed: 0,
-      sessionsRemaining: pkg.sessions,
-      startDate: params.paidAt,
-      expiresAt,
-      pricePaid: pkg.price,
-      paymentStatus: 'PAID',
-      paymentMethod: 'MERCADO_PAGO' as PaymentMethod,
-      mercadoPagoPaymentId: params.mpPaymentId,
-    },
-    update: {},
+  // Idempotency: bail early if this payment was already processed
+  const existingPayment = await tx.payment.findFirst({
+    where: { reference: params.mpPaymentId },
+    select: { membershipId: true },
   });
+  if (existingPayment?.membershipId) return { membershipId: existingPayment.membershipId };
+
+  // Stack rule: if active membership of same tipoActividad exists → add sessions + extend expiry
+  let membershipId: string;
+
+  const sameTipoMembership = pkg.tipoActividadId
+    ? await tx.membership.findFirst({
+        where: {
+          clientId: params.clientId,
+          status: 'ACTIVE',
+          sessionsRemaining: { gt: 0 },
+          expiresAt: { gt: params.paidAt },
+          deletedAt: null,
+          package: { tipoActividadId: pkg.tipoActividadId },
+        },
+        orderBy: { expiresAt: 'desc' },
+      })
+    : null;
+
+  if (sameTipoMembership) {
+    // Extend from whichever is later: current expiry or now
+    const baseDate = sameTipoMembership.expiresAt > params.paidAt
+      ? sameTipoMembership.expiresAt
+      : params.paidAt;
+    const newExpiry = new Date(baseDate);
+    newExpiry.setDate(newExpiry.getDate() + pkg.validityDays);
+
+    await tx.membership.update({
+      where: { id: sameTipoMembership.id },
+      data: {
+        totalSessions: { increment: pkg.sessions },
+        sessionsRemaining: { increment: pkg.sessions },
+        expiresAt: newExpiry,
+      },
+    });
+    membershipId = sameTipoMembership.id;
+  } else {
+    // Create new membership (idempotent via mpPaymentId)
+    const expiresAt = new Date(params.paidAt);
+    expiresAt.setDate(expiresAt.getDate() + pkg.validityDays);
+
+    const membership = await tx.membership.upsert({
+      where: { mercadoPagoPaymentId: params.mpPaymentId },
+      create: {
+        clientId: params.clientId,
+        packageId: params.packageId,
+        status: 'ACTIVE',
+        totalSessions: pkg.sessions,
+        sessionsUsed: 0,
+        sessionsRemaining: pkg.sessions,
+        startDate: params.paidAt,
+        expiresAt,
+        pricePaid: pkg.price,
+        paymentStatus: 'PAID',
+        paymentMethod: 'MERCADO_PAGO' as PaymentMethod,
+        mercadoPagoPaymentId: params.mpPaymentId,
+      },
+      update: {},
+    });
+    membershipId = membership.id;
+  }
 
   await tx.payment.create({
     data: {
-      membershipId: membership.id,
+      membershipId,
       amount: params.transactionAmount ?? pkg.price,
       method: 'MERCADO_PAGO' as PaymentMethod,
       status: 'PAID',
@@ -50,14 +95,14 @@ export async function activateMembershipFromPayment(
   });
 
   await autoCreateIngreso(tx, {
-    membershipId: membership.id,
+    membershipId,
     monto: Number(params.transactionAmount ?? pkg.price),
     concepto: `Membresía ${pkg.name} - MP`,
     fecha: params.paidAt,
     creadoPorId: params.creadoPorId,
   });
 
-  return { membershipId: membership.id };
+  return { membershipId };
 }
 
 async function autoCreateIngreso(
@@ -72,11 +117,7 @@ async function autoCreateIngreso(
 ): Promise<void> {
   const cuenta = await tx.cuentaContable.upsert({
     where: { codigo: '401-ING' },
-    create: {
-      codigo: '401-ING',
-      nombre: 'Ingresos por Membresías MP',
-      tipo: 'INGRESO',
-    },
+    create: { codigo: '401-ING', nombre: 'Ingresos por Membresías MP', tipo: 'INGRESO' },
     update: {},
   });
 

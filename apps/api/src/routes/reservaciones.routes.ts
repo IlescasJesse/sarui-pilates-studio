@@ -216,7 +216,7 @@ router.get(
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const reservacion = await prisma.reservation.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       include: {
         client: true,
         class: { include: { instructor: { select: { id: true, firstName: true, lastName: true } } } },
@@ -244,7 +244,7 @@ router.patch(
       const { status } = req.body as { status?: string };
 
       const reservacion = await prisma.reservation.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: { status: status as 'CONFIRMED' | 'CANCELLED' | 'ATTENDED' | 'NO_SHOW' },
       });
 
@@ -261,8 +261,9 @@ router.delete(
   requireRole('ADMIN'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const id = req.params.id as string;
       const reservacion = await prisma.reservation.findUnique({
-        where: { id: req.params.id },
+        where: { id },
         select: { id: true, membershipId: true, classId: true },
       });
 
@@ -273,7 +274,7 @@ router.delete(
 
       await prisma.$transaction(async (tx) => {
         await tx.reservation.update({
-          where: { id: req.params.id },
+          where: { id },
           data: { status: 'CANCELLED', cancelledAt: new Date() },
         });
 
@@ -313,8 +314,9 @@ router.patch(
   requireRole('ADMIN', 'INSTRUCTOR'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const id = req.params.id as string;
       const reservacion = await prisma.reservation.findUnique({
-        where: { id: req.params.id },
+        where: { id },
       });
 
       if (!reservacion) {
@@ -333,7 +335,7 @@ router.patch(
       });
 
       const updated = await prisma.reservation.update({
-        where: { id: req.params.id },
+        where: { id },
         data: { status: 'CONFIRMED' },
         include: {
           client: { select: { firstName: true, lastName: true, phone: true } },
@@ -366,10 +368,11 @@ router.patch(
   requireRole('ADMIN', 'INSTRUCTOR'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const id = req.params.id as string;
       const { razon } = req.body as { razon?: string };
 
       const reservacion = await prisma.reservation.findUnique({
-        where: { id: req.params.id },
+        where: { id },
       });
 
       if (!reservacion) {
@@ -384,7 +387,7 @@ router.patch(
 
       const updated = await prisma.$transaction(async (tx) => {
         const r = await tx.reservation.update({
-          where: { id: req.params.id },
+          where: { id },
           data: {
             status: 'CANCELLED',
             cancelledAt: new Date(),

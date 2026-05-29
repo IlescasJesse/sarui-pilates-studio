@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { QrCode, Hash, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import { QRScanner } from "@/components/kiosk/QRScanner";
 import { PINPad } from "@/components/kiosk/PINPad";
 
@@ -155,7 +156,7 @@ export default function KioskPage() {
             transition={{ delay: 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col items-center gap-2"
           >
-            <span className="text-[#254F40] font-bold text-2xl tracking-[0.15em]">SARUI</span>
+            <Image src="/sarui-logo.svg" alt="Sarui Pilates Studio" width={200} height={74} priority />
           </motion.div>
 
           {/* Call to action */}

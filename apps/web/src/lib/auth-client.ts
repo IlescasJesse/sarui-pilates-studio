@@ -37,9 +37,22 @@ export function hasValidToken(): boolean {
   return true;
 }
 
+const REFRESH_KEY = "sarui_refresh_token";
+
+export function getRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(REFRESH_KEY);
+}
+
+export function setTokens(accessToken: string, refreshToken?: string): void {
+  localStorage.setItem(TOKEN_KEY, accessToken);
+  if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
+}
+
 export function clearSession(): void {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(REFRESH_KEY);
 }
 
 export function dispatchAuthChange(): void {

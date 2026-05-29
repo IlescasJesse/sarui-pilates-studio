@@ -112,6 +112,33 @@ enum PaymentMethod {
   MERCADO_PAGO
 }
 
+enum JobStatus {
+  RUNNING
+  SUCCESS
+  ERROR
+}
+
+enum CategoriaInversion {
+  EQUIPO
+  LOCAL
+  REMODELACION
+  TECNOLOGIA
+  OTRO
+}
+
+enum CategoriaInventario {
+  EQUIPAMIENTO
+  CONSUMIBLE
+  LIMPIEZA
+  ADMINISTRATIVO
+}
+
+enum TipoMovimiento {
+  ENTRADA
+  SALIDA
+  AJUSTE
+}
+
 // ============================================================
 // AUTH — Usuarios y Roles
 // ============================================================
@@ -131,9 +158,10 @@ model User {
   instructor   Instructor?
   staffProfile StaffProfile?
 
-  refreshTokens  RefreshToken[]
-  gastosCreados  Gasto[]
-  ingresosCreados Ingreso[]
+  refreshTokens        RefreshToken[]
+  gastosCreados        Gasto[]
+  ingresosCreados      Ingreso[]
+  movimientosInventario MovimientoInventario[]
 
   @@index([email])
   @@index([role])
@@ -206,8 +234,9 @@ model Instructor {
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  classes Class[]
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classes   Class[]
+  cortesCaja CorteCaja[]
 
   @@index([userId])
   @@map("instructors")
@@ -370,6 +399,7 @@ model Class {
 
   instructor      Instructor     @relation(fields: [instructorId], references: [id])
   reservations    Reservation[]
+  corteCaja       CorteCaja?
 
   @@index([instructorId])
   @@index([startAt])
@@ -599,4 +629,120 @@ model Ingreso {
   @@index([fecha])
   @@index([origen])
   @@map("ingresos")
+}
+
+// ============================================================
+// CONTABILIDAD OPERATIVA
+// ============================================================
+
+model CorteCaja {
+  id                 String   @id @default(cuid())
+  claseId            String   @unique
+  instructorId       String
+  fecha              DateTime
+  totalReservaciones Int
+  ingresoDirecto     Decimal  @db.Decimal(10, 2)
+  ingresoMembresia   Decimal  @db.Decimal(10, 2)
+  ingresoTotal       Decimal  @db.Decimal(10, 2)
+  creadoEn           DateTime @default(now())
+
+  clase      Class      @relation(fields: [claseId], references: [id])
+  instructor Instructor @relation(fields: [instructorId], references: [id])
+
+  @@index([fecha])
+  @@index([instructorId])
+  @@map("cortes_caja")
+}
+
+// ============================================================
+// INVERSIONES DE CAPITAL
+// ============================================================
+
+model InversionCapital {
+  id         String             @id @default(cuid())
+  concepto   String
+  montoTotal Decimal            @db.Decimal(10, 2)
+  fecha      DateTime
+  categoria  CategoriaInversion
+  notas      String?
+  creadoEn   DateTime           @default(now())
+
+  pagos PagoInversion[]
+
+  @@index([fecha])
+  @@index([categoria])
+  @@map("inversiones_capital")
+}
+
+model PagoInversion {
+  id          String   @id @default(cuid())
+  inversionId String
+  monto       Decimal  @db.Decimal(10, 2)
+  fecha       DateTime
+  nota        String?
+  creadoEn    DateTime @default(now())
+
+  inversion InversionCapital @relation(fields: [inversionId], references: [id])
+
+  @@index([inversionId])
+  @@map("pagos_inversion")
+}
+
+// ============================================================
+// INVENTARIO
+// ============================================================
+
+model Inventario {
+  id                  String              @id @default(cuid())
+  nombre              String
+  categoria           CategoriaInventario
+  cantidad            Int
+  stockMinimo         Int                 @default(0)
+  unidad              String
+  alerta              Boolean             @default(false)
+  ultimaActualizacion DateTime            @default(now())
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  movimientos MovimientoInventario[]
+
+  @@index([categoria])
+  @@index([alerta])
+  @@map("inventario")
+}
+
+model MovimientoInventario {
+  id           String         @id @default(cuid())
+  inventarioId String
+  tipo         TipoMovimiento
+  cantidad     Int
+  nota         String?
+  usuarioId    String
+  creadoEn     DateTime       @default(now())
+
+  inventario Inventario @relation(fields: [inventarioId], references: [id])
+  usuario    User       @relation(fields: [usuarioId], references: [id])
+
+  @@index([inventarioId])
+  @@index([creadoEn])
+  @@map("movimientos_inventario")
+}
+
+// ============================================================
+// JOBS — Scheduler
+// ============================================================
+
+model JobLog {
+  id         String    @id @default(cuid())
+  jobName    String
+  status     JobStatus
+  ranAt      DateTime  @default(now())
+  durationMs Int?
+  error      String?   @db.Text
+
+  @@index([jobName])
+  @@index([ranAt])
+  @@map("job_logs")
 }

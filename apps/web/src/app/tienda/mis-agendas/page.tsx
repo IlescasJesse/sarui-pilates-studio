@@ -2,15 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMisAgendas, useMisMembresias, type AgendaPortal } from "@/hooks/usePortal";
-import { Calendar, Clock, CheckCircle, Clock3, XCircle, Loader2, Package } from "lucide-react";
+import { useMisAgendas, useMisMembresias, useCancelarReserva, type AgendaPortal } from "@/hooks/usePortal";
+import { Calendar, Clock, CheckCircle, Clock3, XCircle, Loader2, Package, Trash2, ArrowLeft } from "lucide-react";
 
 function formatFecha(iso: string) {
   return new Date(iso).toLocaleDateString("es-MX", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
+    weekday: "short", day: "numeric", month: "short", year: "numeric",
   });
 }
 function formatHora(iso: string) {
@@ -18,36 +15,38 @@ function formatHora(iso: string) {
 }
 
 const statusConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-  CONFIRMED: {
-    label: "Confirmada",
-    icon: <CheckCircle className="w-4 h-4" />,
-    color: "text-green-600 bg-green-50 border-green-200",
-  },
-  PENDING_APPROVAL: {
-    label: "Pendiente de aprobación",
-    icon: <Clock3 className="w-4 h-4" />,
-    color: "text-amber-600 bg-amber-50 border-amber-200",
-  },
-  CANCELLED: {
-    label: "Cancelada",
-    icon: <XCircle className="w-4 h-4" />,
-    color: "text-red-500 bg-red-50 border-red-200",
-  },
-  ATTENDED: {
-    label: "Asistida",
-    icon: <CheckCircle className="w-4 h-4" />,
-    color: "text-[#254F40] bg-[#254F40]/10 border-[#254F40]/20",
-  },
+  CONFIRMED: { label: "Confirmada", icon: <CheckCircle className="w-4 h-4" />, color: "text-green-600 bg-green-50 border-green-200" },
+  PENDING_APPROVAL: { label: "Pendiente", icon: <Clock3 className="w-4 h-4" />, color: "text-amber-600 bg-amber-50 border-amber-200" },
+  CANCELLED: { label: "Cancelada", icon: <XCircle className="w-4 h-4" />, color: "text-red-500 bg-red-50 border-red-200" },
+  ATTENDED: { label: "Asistida", icon: <CheckCircle className="w-4 h-4" />, color: "text-[#254F40] bg-[#254F40]/10 border-[#254F40]/20" },
 };
 
+function isCancelable(agenda: AgendaPortal): boolean {
+  if (agenda.status === "CANCELLED" || agenda.status === "ATTENDED") return false;
+  const diffMs = new Date(agenda.class.startAt).getTime() - Date.now();
+  return diffMs > 5 * 60 * 60 * 1000; // 5h policy
+}
+
 function AgendaCard({ agenda }: { agenda: AgendaPortal }) {
-  const sc = statusConfig[agenda.status] ?? {
-    label: agenda.status,
-    icon: null,
-    color: "text-gray-500 bg-gray-50 border-gray-200",
-  };
+  const cancelar = useCancelarReserva();
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const sc = statusConfig[agenda.status] ?? { label: agenda.status, icon: null, color: "text-gray-500 bg-gray-50 border-gray-200" };
   const color = agenda.class.tipoActividad?.color ?? "#254F40";
-  const esSolicitud = agenda.origin === "PORTAL_REQUEST";
+  const cancelable = isCancelable(agenda);
+
+  async function handleCancelar() {
+    setError(null);
+    try {
+      await cancelar.mutateAsync(agenda.id);
+      setConfirming(false);
+    } catch (err: any) {
+      const code = err?.response?.data?.error?.code;
+      setError(code === "TOO_LATE" ? "Ya no puedes cancelar con menos de 5 horas de anticipación." : "No se pudo cancelar. Intenta de nuevo.");
+      setConfirming(false);
+    }
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-[#254F40]/10 overflow-hidden">
@@ -62,9 +61,8 @@ function AgendaCard({ agenda }: { agenda: AgendaPortal }) {
               Con {agenda.class.instructor.firstName} {agenda.class.instructor.lastName}
             </p>
           </div>
-          <div className={`flex items-center gap-1.5 text-xs font-medium border rounded-full px-2.5 py-1 ${sc.color}`}>
-            {sc.icon}
-            {sc.label}
+          <div className={`flex items-center gap-1.5 text-xs font-medium border rounded-full px-2.5 py-1 shrink-0 ${sc.color}`}>
+            {sc.icon}{sc.label}
           </div>
         </div>
 
@@ -75,16 +73,49 @@ function AgendaCard({ agenda }: { agenda: AgendaPortal }) {
           </div>
           <div className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5" />
-            <span>
-              {formatHora(agenda.class.startAt)} – {formatHora(agenda.class.endAt)}
-            </span>
+            <span>{formatHora(agenda.class.startAt)} – {formatHora(agenda.class.endAt)}</span>
           </div>
         </div>
 
-        {esSolicitud && agenda.status === "PENDING_APPROVAL" && (
+        {agenda.origin === "PORTAL_REQUEST" && agenda.status === "PENDING_APPROVAL" && (
           <p className="mt-3 text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
-            Solicitud enviada. El equipo la revisará y te confirmará por WhatsApp.
+            Solicitud enviada. El equipo la confirmará por WhatsApp.
           </p>
+        )}
+
+        {error && (
+          <p className="mt-3 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+        )}
+
+        {cancelable && !confirming && (
+          <button
+            onClick={() => setConfirming(true)}
+            className="mt-4 w-full flex items-center justify-center gap-1.5 text-xs text-red-500 border border-red-200 rounded-xl py-2 hover:bg-red-50 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Cancelar reservación
+          </button>
+        )}
+
+        {confirming && (
+          <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
+            <p className="text-xs text-red-700 font-medium mb-3 text-center">¿Cancelar esta reservación?</p>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCancelar}
+                disabled={cancelar.isPending}
+                className="flex-1 bg-red-500 text-white text-xs font-medium py-2 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-1"
+              >
+                {cancelar.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Sí, cancelar"}
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="flex-1 border border-red-200 text-red-500 text-xs font-medium py-2 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                No, mantener
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -97,7 +128,7 @@ export default function MisAgendasPage() {
 
   useEffect(() => {
     const token = localStorage.getItem("sarui_token");
-    if (!token) router.push("/tienda/login?redirect=/portal/mis-agendas");
+    if (!token) router.push("/tienda/login?redirect=/tienda/mis-agendas");
     else setIsAuthed(true);
   }, [router]);
 
@@ -113,20 +144,28 @@ export default function MisAgendasPage() {
     );
   }
 
+  const activas = agendas?.filter((a) => a.status !== "CANCELLED" && a.status !== "ATTENDED") ?? [];
+  const pasadas = agendas?.filter((a) => a.status === "CANCELLED" || a.status === "ATTENDED") ?? [];
+
   return (
     <div>
+      <button
+        onClick={() => router.push("/tienda")}
+        className="flex items-center gap-1.5 text-sm text-[#254F40]/60 hover:text-[#254F40] mb-5 transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" /> Inicio
+      </button>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-[#254F40]">Mis agendas</h1>
         <p className="text-sm text-[#254F40]/60 mt-1">Tus reservaciones en Sarui Studio</p>
       </div>
 
-      {/* Banner si no tiene membresía activa */}
       {membresias !== undefined && membresias.length === 0 && (
         <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
           <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
             <Package className="w-4 h-4 text-amber-600" />
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1">
             <p className="text-sm font-semibold text-amber-800">Sin membresía activa</p>
             <p className="text-xs text-amber-600 mt-0.5">Adquiere un paquete para reservar clases.</p>
           </div>
@@ -139,21 +178,31 @@ export default function MisAgendasPage() {
         </div>
       )}
 
-      {!agendas || agendas.length === 0 ? (
+      {(!agendas || agendas.length === 0) ? (
         <div className="text-center py-16 text-[#254F40]/50">
           <p>Aún no tienes agendas.</p>
-          <button
-            onClick={() => router.push("/tienda/clases")}
-            className="mt-3 text-sm underline text-[#254F40]"
-          >
+          <button onClick={() => router.push("/tienda/clases")} className="mt-3 text-sm underline text-[#254F40]">
             Ver clases disponibles
           </button>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {agendas.map((a) => (
-            <AgendaCard key={a.id} agenda={a} />
-          ))}
+        <div className="space-y-6">
+          {activas.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-[#254F40]/40 uppercase tracking-wider mb-3">Próximas</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {activas.map((a) => <AgendaCard key={a.id} agenda={a} />)}
+              </div>
+            </div>
+          )}
+          {pasadas.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-[#254F40]/40 uppercase tracking-wider mb-3">Historial</p>
+              <div className="grid gap-3 sm:grid-cols-2 opacity-60">
+                {pasadas.map((a) => <AgendaCard key={a.id} agenda={a} />)}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

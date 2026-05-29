@@ -1,0 +1,3 @@
+-- AlterTable: add MERCADO_PAGO to PaymentMethod enum
+ALTER TABLE `memberships` MODIFY COLUMN `paymentMethod` ENUM('CASH','CARD','TRANSFER','OTHER','MERCADO_PAGO') NULL;
+ALTER TABLE `payments` MODIFY COLUMN `method` ENUM('CASH','CARD','TRANSFER','OTHER','MERCADO_PAGO') NOT NULL;

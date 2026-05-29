@@ -14,18 +14,24 @@ export interface CreatePreferenceParams {
 
 const WEBHOOK_PATH = '/api/v1/portal/webhook/mercadopago';
 
+function getCheckoutUrl(preference: { init_point?: string; sandbox_init_point?: string }): string {
+  const isTest = env.MP_ACCESS_TOKEN.startsWith('TEST-');
+  return (isTest ? preference.sandbox_init_point : preference.init_point) ?? preference.init_point ?? '';
+}
+
 function isHttps(url: string) {
   return url.startsWith('https://');
 }
 
 function addBackUrls(body: Record<string, any>, baseUrl: string, successPath: string) {
-  if (!isHttps(baseUrl)) return;
   body.back_urls = {
     success: `${baseUrl}${successPath}`,
     failure: `${baseUrl}/tienda/pago/fallido`,
     pending: `${baseUrl}/tienda/pago/pendiente`,
   };
-  body.auto_return = 'approved';
+  if (isHttps(baseUrl)) {
+    body.auto_return = 'approved';
+  }
 }
 
 function addNotificationUrl(body: Record<string, any>) {
@@ -58,7 +64,7 @@ export async function createPreference(params: CreatePreferenceParams) {
   addNotificationUrl(body);
 
   const result = await preference.create({ body: body as any });
-  return result;
+  return { ...result, checkoutUrl: getCheckoutUrl(result) };
 }
 
 export async function getPayment(paymentId: string) {
@@ -99,5 +105,5 @@ export async function createPackagePreference(params: CreatePackagePreferencePar
   addNotificationUrl(body);
 
   const result = await preference.create({ body: body as any });
-  return result;
+  return { ...result, checkoutUrl: getCheckoutUrl(result) };
 }

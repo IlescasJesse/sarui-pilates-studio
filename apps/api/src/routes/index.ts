@@ -15,6 +15,9 @@ import webhookRoutes from './webhook.routes';
 import perfilRoutes from './perfil.routes';
 import usuariosRoutes from './usuarios.routes';
 import contabilidadRoutes from './contabilidad.routes';
+import adminRoutes from './admin.routes';
+import inventarioRoutes from './inventario.routes';
+import finanzasRoutes from './finanzas.routes';
 
 const router = Router();
 
@@ -37,5 +40,8 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/perfil', perfilRoutes);
 router.use('/usuarios', usuariosRoutes);
 router.use('/contabilidad', contabilidadRoutes);
+router.use('/admin', adminRoutes);
+router.use('/inventario', inventarioRoutes);
+router.use('/finanzas', finanzasRoutes);
 
 export default router;

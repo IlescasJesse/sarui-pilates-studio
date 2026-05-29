@@ -148,7 +148,7 @@ router.post(
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const clase = await prisma.class.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       include: {
         instructor: { select: { id: true, firstName: true, lastName: true } },
         tipoActividad: { select: { id: true, nombre: true, color: true } },
@@ -197,7 +197,7 @@ router.patch(
 
       const { startAt, endAt, ...rest } = parseResult.data;
       const clase = await prisma.class.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: {
           ...rest,
           ...(startAt ? { startAt: new Date(startAt) } : {}),
@@ -224,7 +224,7 @@ router.delete(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       await prisma.class.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: { isCancelled: true, isActive: false },
       });
 

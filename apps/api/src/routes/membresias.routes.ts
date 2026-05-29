@@ -112,7 +112,7 @@ router.post(
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const membresia = await prisma.membership.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       include: {
         client: { select: { id: true, firstName: true, lastName: true } },
         package: true,
@@ -159,7 +159,7 @@ router.put(
 
       const { expiresAt, ...rest } = parseResult.data;
       const membresia = await prisma.membership.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: {
           ...rest,
           ...(expiresAt ? { expiresAt: new Date(expiresAt) } : {}),
@@ -180,7 +180,7 @@ router.delete(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       await prisma.membership.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: { status: 'SUSPENDED' },
       });
 

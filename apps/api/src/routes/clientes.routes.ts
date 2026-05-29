@@ -147,7 +147,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const cliente = await prisma.client.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       include: {
         user: { select: { email: true, isActive: true } },
         memberships: {
@@ -193,7 +193,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
     const { pin, birthDate, ...rest } = parseResult.data;
     const cliente = await prisma.client.update({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       data: {
         ...rest,
         ...(birthDate ? { birthDate: new Date(birthDate) } : {}),
@@ -211,7 +211,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     await prisma.client.update({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       data: { deletedAt: new Date() },
     });
 
@@ -225,7 +225,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
 router.get('/:id/qr', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const cliente = await prisma.client.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       select: { id: true, firstName: true, lastName: true, qrCode: true },
     });
 
@@ -260,7 +260,7 @@ router.post(
       const nuevoQr = uuidv4();
 
       const cliente = await prisma.client.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: { qrCode: nuevoQr },
         select: { id: true, firstName: true, lastName: true, qrCode: true, phone: true },
       });

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -16,6 +17,8 @@ import {
   UserCog,
   ChevronLeft,
   ChevronRight,
+  Receipt,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/store/uiStore";
@@ -34,6 +37,8 @@ const navItems: NavItem[] = [
   { label: "Clases", href: "/clases", icon: CalendarDays },
   { label: "Reservaciones", href: "/reservaciones", icon: BookOpen },
   { label: "Instructores", href: "/instructores", icon: UserCheck },
+  { label: "Contabilidad", href: "/contabilidad", icon: Receipt },
+  { label: "Finanzas", href: "/contabilidad/finanzas", icon: BarChart3 },
   { label: "Ayuda", href: "/ayuda", icon: HelpCircle },
   { label: "Usuarios", href: "/usuarios", icon: UserCog },
   { label: "Kiosco", href: "/kiosk", icon: Monitor },
@@ -67,7 +72,7 @@ export function Sidebar() {
         {/* Logo */}
         <div className="flex items-center justify-center h-16 border-b border-white/10 px-3">
           {sidebarOpen ? (
-            <span className="text-[#FDFFEC] font-bold text-lg tracking-[0.15em]">SARUI</span>
+            <Image src="/sarui-logo.svg" alt="Sarui Pilates Studio" width={120} height={44} />
           ) : (
             <div
               className="flex items-center justify-center w-8 h-8 rounded-full bg-[#F6FFB5]/15 border border-[#F6FFB5]/30"

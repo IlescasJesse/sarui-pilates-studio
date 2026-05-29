@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
 import { isClientLoggedIn, clearSession, dispatchAuthChange } from "@/lib/auth-client";
 
 const NO_AUTH_PAGES = ["/tienda/login", "/tienda/restablecer-contrasena", "/tienda/crear-contrasena"];
 
 export default function TiendaLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isPublicPage = NO_AUTH_PAGES.includes(pathname);
+  const router = useRouter();
+  const isPublicPage = NO_AUTH_PAGES.some((p) => pathname.startsWith(p));
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -25,43 +27,31 @@ export default function TiendaLayout({ children }: { children: React.ReactNode }
 
   return (
     <div className="min-h-screen bg-[#FDFFEC] flex flex-col">
-      <header className="bg-[#254F40] text-[#F6FFB5]">
+      <header className="bg-[#254F40] text-[#F6FFB5] sticky top-0 z-30">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/tienda" className="flex items-center gap-2">
-            <span className="text-[#F6FFB5] font-bold text-lg tracking-[0.15em]">SARUI</span>
+          <Link href="/tienda" className="flex items-center gap-2 shrink-0">
+            <Image src="/sarui-logo.svg" alt="Sarui" width={100} height={36} priority />
           </Link>
-          <nav className="flex items-center gap-4 text-sm">
-            {loggedIn ? (
-              <>
-                <a href="/tienda/clases" className="opacity-80 hover:opacity-100 transition-opacity">
-                  Clases
-                </a>
-                <a href="/tienda/mis-agendas" className="opacity-80 hover:opacity-100 transition-opacity">
-                  Mis Agendas
-                </a>
-                <a href="/tienda/membresia" className="opacity-80 hover:opacity-100 transition-opacity">
-                  Membresía
-                </a>
-                <button
-                  onClick={() => {
-                    clearSession();
-                    dispatchAuthChange();
-                    window.location.href = "/tienda";
-                  }}
-                  className="bg-[#F6FFB5] text-[#254F40] font-semibold px-3 py-1.5 rounded-lg text-sm hover:bg-[#F6FFB5]/90 transition-colors"
-                >
-                  Cerrar sesión
-                </button>
-              </>
-            ) : !isPublicPage && (
-              <a
-                href="/tienda/login"
-                className="bg-[#F6FFB5] text-[#254F40] font-semibold px-3 py-1.5 rounded-lg text-sm hover:bg-[#F6FFB5]/90 transition-colors"
-              >
-                Iniciar sesión
-              </a>
-            )}
-          </nav>
+
+          {loggedIn ? (
+            <button
+              onClick={() => {
+                clearSession();
+                dispatchAuthChange();
+                router.push("/tienda/login");
+              }}
+              className="bg-[#F6FFB5] text-[#254F40] font-semibold px-3 py-1.5 rounded-lg text-sm hover:bg-[#F6FFB5]/90 transition-colors"
+            >
+              Salir
+            </button>
+          ) : !isPublicPage && (
+            <Link
+              href="/tienda/login"
+              className="bg-[#F6FFB5] text-[#254F40] font-semibold px-3 py-1.5 rounded-lg text-sm hover:bg-[#F6FFB5]/90 transition-colors"
+            >
+              Iniciar sesión
+            </Link>
+          )}
         </div>
       </header>
 

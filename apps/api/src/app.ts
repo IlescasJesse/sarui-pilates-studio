@@ -9,6 +9,8 @@ import { errorHandler } from './middlewares/error.middleware';
 
 const app: Application = express();
 
+app.set('trust proxy', 1);
+
 // Global rate limiter (excluye webhooks de MP)
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000,

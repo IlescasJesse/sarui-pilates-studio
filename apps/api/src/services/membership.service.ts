@@ -62,37 +62,58 @@ export async function activateMembershipFromPayment(
     const expiresAt = new Date(params.paidAt);
     expiresAt.setDate(expiresAt.getDate() + pkg.validityDays);
 
-    const membership = await tx.membership.upsert({
-      where: { mercadoPagoPaymentId: params.mpPaymentId },
-      create: {
-        clientId: params.clientId,
-        packageId: params.packageId,
-        status: 'ACTIVE',
-        totalSessions: pkg.sessions,
-        sessionsUsed: 0,
-        sessionsRemaining: pkg.sessions,
-        startDate: params.paidAt,
-        expiresAt,
-        pricePaid: pkg.price,
-        paymentStatus: 'PAID',
-        paymentMethod: 'MERCADO_PAGO' as PaymentMethod,
-        mercadoPagoPaymentId: params.mpPaymentId,
-      },
-      update: {},
-    });
-    membershipId = membership.id;
+    // Concurrent webhooks can both miss the upsert's internal SELECT and race the
+    // INSERT; the loser gets P2002 on unique(mercadoPagoPaymentId) — same replay
+    // semantics as the payment.reference guard below.
+    try {
+      const membership = await tx.membership.upsert({
+        where: { mercadoPagoPaymentId: params.mpPaymentId },
+        create: {
+          clientId: params.clientId,
+          packageId: params.packageId,
+          status: 'ACTIVE',
+          totalSessions: pkg.sessions,
+          sessionsUsed: 0,
+          sessionsRemaining: pkg.sessions,
+          startDate: params.paidAt,
+          expiresAt,
+          pricePaid: pkg.price,
+          paymentStatus: 'PAID',
+          paymentMethod: 'MERCADO_PAGO' as PaymentMethod,
+          mercadoPagoPaymentId: params.mpPaymentId,
+        },
+        update: {},
+      });
+      membershipId = membership.id;
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw Object.assign(new Error('PAYMENT_REPLAY'), { code: 'PAYMENT_REPLAY' });
+      }
+      throw err;
+    }
   }
 
-  await tx.payment.create({
-    data: {
-      membershipId,
-      amount: params.transactionAmount ?? pkg.price,
-      method: 'MERCADO_PAGO' as PaymentMethod,
-      status: 'PAID',
-      reference: params.mpPaymentId,
-      paidAt: params.paidAt,
-    },
-  });
+  // The UNIQUE constraint on payment.reference is the strong idempotency guard:
+  // if a concurrent webhook with the same mpPaymentId raced past the SELECT above,
+  // this insert throws P2002. Re-throw it so the surrounding transaction rolls back
+  // the membership extension; the caller treats P2002 as an idempotent replay.
+  try {
+    await tx.payment.create({
+      data: {
+        membershipId,
+        amount: params.transactionAmount ?? pkg.price,
+        method: 'MERCADO_PAGO' as PaymentMethod,
+        status: 'PAID',
+        reference: params.mpPaymentId,
+        paidAt: params.paidAt,
+      },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw Object.assign(new Error('PAYMENT_REPLAY'), { code: 'PAYMENT_REPLAY' });
+    }
+    throw err;
+  }
 
   await autoCreateIngreso(tx, {
     membershipId,

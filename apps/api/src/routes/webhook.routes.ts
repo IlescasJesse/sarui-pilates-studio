@@ -73,15 +73,25 @@ router.post('/mercadopago', async (req: Request, res: Response, next: NextFuncti
       const clientId = parts[2];
 
       if (payment.status === 'approved') {
-        await prisma.$transaction(async (tx) => {
-          await activateMembershipFromPayment(tx, {
-            packageId,
-            clientId,
-            mpPaymentId: String(data.id),
-            transactionAmount: payment.transaction_amount,
-            paidAt: new Date(),
+        try {
+          await prisma.$transaction(async (tx) => {
+            await activateMembershipFromPayment(tx, {
+              packageId,
+              clientId,
+              mpPaymentId: String(data.id),
+              transactionAmount: payment.transaction_amount,
+              paidAt: new Date(),
+            });
           });
-        });
+        } catch (err) {
+          // Concurrent duplicate webhook: unique(reference) rejected the replay and
+          // rolled back the transaction. Idempotent no-op — acknowledge with 200.
+          if ((err as { code?: string }).code === 'PAYMENT_REPLAY') {
+            console.info(`[webhook] Replay descartado para mpPaymentId=${data.id}`);
+          } else {
+            throw err;
+          }
+        }
       }
 
       res.sendStatus(200);

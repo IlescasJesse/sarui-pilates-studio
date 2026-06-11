@@ -483,14 +483,6 @@ router.post('/reservar-provisional', async (req: Request, res: Response, next: N
       return;
     }
 
-    // Verificar spot disponible
-    const spotsUsed = await prisma.reservation.count({
-      where: { classId: claseId, status: { in: ['PENDING_APPROVAL', 'CONFIRMED'] } },
-    });
-    if (clase.capacity !== null && spotsUsed >= clase.capacity) {
-      ApiError(res, 'CLASS_FULL', 'No hay lugares disponibles', 400); return;
-    }
-
     // Verificar no duplicado
     const existente = await prisma.reservation.findUnique({
       where: { clientId_classId: { clientId, classId: claseId } },
@@ -499,9 +491,16 @@ router.post('/reservar-provisional', async (req: Request, res: Response, next: N
       ApiError(res, 'ALREADY_RESERVED', 'Ya tienes una reservación para esta clase', 409); return;
     }
 
-    // Crear reserva y descontar sesión atómicamente
-    await prisma.$transaction([
-      prisma.reservation.create({
+    // Reservar lugar + descontar sesión atómicamente.
+    // Incremento condicional de spotsBooked previene overbooking en requests concurrentes.
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.$executeRaw`
+        UPDATE \`classes\` SET spotsBooked = spotsBooked + 1
+        WHERE id = ${claseId} AND spotsBooked < capacity AND deletedAt IS NULL
+      `;
+      if (updated === 0) throw Object.assign(new Error('CLASS_FULL'), { code: 'CLASS_FULL' });
+
+      await tx.reservation.create({
         data: {
           clientId,
           classId: claseId,
@@ -509,19 +508,24 @@ router.post('/reservar-provisional', async (req: Request, res: Response, next: N
           status: 'CONFIRMED',
           origin: 'PORTAL',
         },
-      }),
-      prisma.membership.update({
+      });
+
+      await tx.membership.update({
         where: { id: membresiaId },
         data: {
           sessionsUsed:      { increment: 1 },
           sessionsRemaining: { decrement: 1 },
           status: membresia.sessionsRemaining - 1 <= 0 ? 'EXHAUSTED' : 'ACTIVE',
         },
-      }),
-    ]);
+      });
+    });
 
     ApiSuccess(res, { mensaje: 'Reservación confirmada' }, 201);
   } catch (error) {
+    if ((error as { code?: string }).code === 'CLASS_FULL') {
+      ApiError(res, 'CLASS_FULL', 'No hay lugares disponibles', 409);
+      return;
+    }
     next(error);
   }
 });

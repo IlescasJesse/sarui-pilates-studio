@@ -503,7 +503,7 @@ model Payment {
 
   isPartial      Boolean       @default(false)
 
-  reference      String?       // folio, número de transacción
+  reference      String?       @unique // folio, número de transacción / mpPaymentId (idempotencia webhook)
   notes          String?
 
   paidAt         DateTime?

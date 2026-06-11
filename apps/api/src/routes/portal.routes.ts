@@ -928,12 +928,10 @@ router.post('/reservaciones', async (req: Request, res: Response, next: NextFunc
       });
 
       if (!membresia) {
-        if (!portalWaConfirmed) {
-          ApiError(res, 'MEMBERSHIP_REQUIRED', 'No tienes sesiones disponibles para este tipo de clase. Contacta al estudio por WhatsApp para reservar.', 400);
-          return;
-        }
-        // WA solicitud without matching membership — booking requires staff approval
-        ApiError(res, 'MEMBERSHIP_REQUIRED', 'No tienes sesiones disponibles en tu membresía.', 400);
+        // Membership is mandatory for the no-payment flow. The old WA-confirmed
+        // bypass (PENDING_APPROVAL booking) was removed deliberately; if that
+        // feature returns it needs its own approval flow, not a flag check here.
+        ApiError(res, 'MEMBERSHIP_REQUIRED', 'No tienes sesiones disponibles para este tipo de clase. Contacta al estudio por WhatsApp para reservar.', 400);
         return;
       }
 

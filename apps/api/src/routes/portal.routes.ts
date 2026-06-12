@@ -596,13 +596,16 @@ router.post('/establecer-contrasena', async (req: Request, res: Response, next: 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/v1/portal/olvide-contrasena  — público
 // ─────────────────────────────────────────────────────────────────────────────
+const olvideContrasenaSchema = z.object({ email: z.string().trim().email('Correo inválido') });
+
 router.post('/olvide-contrasena', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email } = req.body as { email?: string };
-    if (!email) {
-      ApiError(res, 'VALIDATION_ERROR', 'Correo requerido', 400);
+    const parse = olvideContrasenaSchema.safeParse(req.body);
+    if (!parse.success) {
+      ApiError(res, 'VALIDATION_ERROR', parse.error.errors[0]?.message ?? 'Correo inválido', 400);
       return;
     }
+    const { email } = parse.data;
 
     const user = await prisma.user.findUnique({
       where: { email, deletedAt: null },
@@ -671,6 +674,12 @@ router.post('/restablecer-contrasena', async (req: Request, res: Response, next:
     const user = await prisma.user.findUnique({ where: { id: decoded.userId, deletedAt: null } });
     if (!user) {
       ApiError(res, 'USER_NOT_FOUND', 'La cuenta ya no existe. Solicita un nuevo enlace de restablecimiento.', 410);
+      return;
+    }
+    // Verify the email embedded in the token still matches the current DB record.
+    // Guards against token reuse after an email change.
+    if (user.email !== decoded.email) {
+      ApiError(res, 'TOKEN_INVALID', 'El enlace ya no es válido. Solicita uno nuevo.', 401);
       return;
     }
     await prisma.user.update({

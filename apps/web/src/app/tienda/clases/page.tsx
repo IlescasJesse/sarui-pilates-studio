@@ -112,6 +112,7 @@ export default function ClasesPortalPage() {
       (m: MembresiaPortal) =>
         m.status === "ACTIVE" &&
         m.sessionsRemaining > 0 &&
+        new Date(m.expiresAt) > new Date() &&
         (!clase.tipoActividad ||
           !m.package.tipoActividad ||
           m.package.tipoActividad.nombre === clase.tipoActividad!.nombre)

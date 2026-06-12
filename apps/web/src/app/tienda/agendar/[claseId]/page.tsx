@@ -48,6 +48,7 @@ export default function AgendarPage() {
 
   const [modo, setModo] = useState<Modo>("elegir");
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [isAuthed, setIsAuthed] = useState<boolean | null>(null);
   const [clienteNombre, setClienteNombre] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -97,6 +98,7 @@ export default function AgendarPage() {
       });
       if (result.preferenceId) {
         setPreferenceId(result.preferenceId);
+        setCheckoutUrl(result.checkoutUrl ?? null);
         setModo("pago");
       }
     } catch (err) {
@@ -157,6 +159,7 @@ export default function AgendarPage() {
     (m) =>
       m.status === "ACTIVE" &&
       m.sessionsRemaining > 0 &&
+      new Date(m.expiresAt) > new Date() &&
       (!clase.tipoActividad ||
         !m.package.tipoActividad ||
         m.package.tipoActividad.nombre === clase.tipoActividad!.nombre)
@@ -462,7 +465,7 @@ export default function AgendarPage() {
       )}
 
 
-      {/* ── Wallet de MercadoPago ─────────────────────────────────────────────── */}
+      {/* ── Pago con MercadoPago ─────────────────────────────────────────────── */}
       {modo === "pago" && preferenceId && (
         <div className="bg-white rounded-2xl border border-[#254F40]/10 p-6">
           <h2 className="font-semibold text-[#254F40] mb-1">Completa tu pago</h2>
@@ -470,9 +473,21 @@ export default function AgendarPage() {
             Total: <span className="font-bold text-[#254F40]">${monto.toLocaleString("es-MX")} MXN</span>
           </p>
           <p className="text-xs text-[#254F40]/50 mb-5">
-            Selecciona tu método de pago preferido.
+            Se abrirá MercadoPago en una nueva pestaña para completar el pago.
           </p>
-          <Wallet initialization={{ preferenceId }} locale="es-MX" />
+          {checkoutUrl ? (
+            <a
+              href={checkoutUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#009ee3] text-white text-sm font-semibold hover:bg-[#008cce] transition-colors"
+            >
+              <CreditCard className="w-4 h-4" />
+              Pagar con MercadoPago
+            </a>
+          ) : (
+            <Wallet initialization={{ preferenceId, redirectMode: "self" }} locale="es-MX" />
+          )}
         </div>
       )}
 

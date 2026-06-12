@@ -51,7 +51,7 @@ function MembresiaExitosaContent() {
   }
 
   const membresiaActiva = membresias?.find(
-    (m) => m.status === "ACTIVE" && m.sessionsRemaining > 0
+    (m) => m.status === "ACTIVE" && m.sessionsRemaining > 0 && new Date(m.expiresAt) > new Date()
   );
 
   const vigencia = membresiaActiva

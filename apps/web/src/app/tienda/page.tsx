@@ -56,7 +56,7 @@ export default function TiendaHomePage() {
   }
 
   const membresiasActivas = membresias?.filter(
-    (m) => m.status === "ACTIVE" && m.sessionsRemaining > 0
+    (m) => m.status === "ACTIVE" && m.sessionsRemaining > 0 && new Date(m.expiresAt) > new Date()
   ) ?? [];
 
   const proximasAgendas = agendas

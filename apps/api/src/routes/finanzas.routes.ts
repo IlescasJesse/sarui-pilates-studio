@@ -21,8 +21,16 @@ function rango(mes: number, anio: number) {
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/estado-resultados', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const mes  = Number(req.query.mes)  || new Date().getMonth() + 1;
-    const anio = Number(req.query.anio) || new Date().getFullYear();
+    const _mes  = req.query.mes  !== undefined ? Number(req.query.mes)  : null;
+    const _anio = req.query.anio !== undefined ? Number(req.query.anio) : null;
+    const mes  = _mes  ?? new Date().getMonth() + 1;
+    const anio = _anio ?? new Date().getFullYear();
+    if (!Number.isInteger(mes) || mes < 1 || mes > 12) {
+      ApiError(res, 'VALIDATION_ERROR', 'mes debe ser un entero entre 1 y 12', 400); return;
+    }
+    if (!Number.isInteger(anio) || anio < 2000 || anio > 2100) {
+      ApiError(res, 'VALIDATION_ERROR', 'anio debe ser un entero entre 2000 y 2100', 400); return;
+    }
     const fecha = rango(mes, anio);
 
     const [ingresos, gastos, membresiasPagadas, cortesCaja] = await Promise.all([
@@ -96,8 +104,16 @@ router.get('/estado-resultados', async (req: Request, res: Response, next: NextF
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/flujo-efectivo', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const mes  = Number(req.query.mes)  || new Date().getMonth() + 1;
-    const anio = Number(req.query.anio) || new Date().getFullYear();
+    const _mes  = req.query.mes  !== undefined ? Number(req.query.mes)  : null;
+    const _anio = req.query.anio !== undefined ? Number(req.query.anio) : null;
+    const mes  = _mes  ?? new Date().getMonth() + 1;
+    const anio = _anio ?? new Date().getFullYear();
+    if (!Number.isInteger(mes) || mes < 1 || mes > 12) {
+      ApiError(res, 'VALIDATION_ERROR', 'mes debe ser un entero entre 1 y 12', 400); return;
+    }
+    if (!Number.isInteger(anio) || anio < 2000 || anio > 2100) {
+      ApiError(res, 'VALIDATION_ERROR', 'anio debe ser un entero entre 2000 y 2100', 400); return;
+    }
     const fecha = rango(mes, anio);
 
     const [ingresos, gastos, membresiasPagadas, pagosInversion] = await Promise.all([
@@ -212,8 +228,16 @@ router.get('/balance-general', async (req: Request, res: Response, next: NextFun
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/kpis', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const mes  = Number(req.query.mes)  || new Date().getMonth() + 1;
-    const anio = Number(req.query.anio) || new Date().getFullYear();
+    const _mes  = req.query.mes  !== undefined ? Number(req.query.mes)  : null;
+    const _anio = req.query.anio !== undefined ? Number(req.query.anio) : null;
+    const mes  = _mes  ?? new Date().getMonth() + 1;
+    const anio = _anio ?? new Date().getFullYear();
+    if (!Number.isInteger(mes) || mes < 1 || mes > 12) {
+      ApiError(res, 'VALIDATION_ERROR', 'mes debe ser un entero entre 1 y 12', 400); return;
+    }
+    if (!Number.isInteger(anio) || anio < 2000 || anio > 2100) {
+      ApiError(res, 'VALIDATION_ERROR', 'anio debe ser un entero entre 2000 y 2100', 400); return;
+    }
     const inicio = new Date(anio, mes - 1, 1);
     const fin    = new Date(anio, mes, 0, 23, 59, 59);
 
@@ -363,7 +387,15 @@ router.post('/inversiones/:id/pago', async (req: Request, res: Response, next: N
 // DELETE /api/v1/finanzas/inversiones/:id/pago/:pagoId
 router.delete('/inversiones/:id/pago/:pagoId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await prisma.pagoInversion.delete({ where: { id: req.params.pagoId as string } });
+    const inversionId = req.params.id as string;
+    const pagoId = req.params.pagoId as string;
+    const deleted = await prisma.pagoInversion.deleteMany({
+      where: { id: pagoId, inversionId },
+    });
+    if (deleted.count === 0) {
+      ApiError(res, 'NOT_FOUND', 'Pago no encontrado en esta inversión', 404);
+      return;
+    }
     ApiSuccess(res, { mensaje: 'Pago eliminado' });
   } catch (error) { next(error); }
 });

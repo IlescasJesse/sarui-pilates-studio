@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { prisma } from '../config/database';
 import { getPayment } from '../services/mercadopago.service';
 import { ApiSuccess } from '../utils/response';
@@ -34,7 +34,13 @@ function validateMpSignature(req: Request): boolean {
   const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
   const expected = createHmac('sha256', secret).update(manifest).digest('hex');
 
-  return expected === v1;
+  // Use timing-safe comparison to prevent timing-oracle attacks.
+  // Both strings are hex-encoded HMAC output so they have equal length;
+  // Buffer.byteLength check guards against a future regression.
+  const expectedBuf = Buffer.from(expected, 'hex');
+  const actualBuf   = Buffer.from(v1,       'hex');
+  if (expectedBuf.byteLength !== actualBuf.byteLength) return false;
+  return timingSafeEqual(expectedBuf, actualBuf);
 }
 
 // POST /api/v1/portal/webhook/mercadopago

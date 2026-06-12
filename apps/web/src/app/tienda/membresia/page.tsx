@@ -220,6 +220,9 @@ export default function MembresiaPortalPage() {
 
   useEffect(() => {
     if (MP_PUBLIC_KEY) initMercadoPago(MP_PUBLIC_KEY, { locale: "es-MX" });
+  }, []);
+
+  useEffect(() => {
     const token = localStorage.getItem("sarui_token");
     if (!token) router.push("/tienda/login?redirect=/tienda/membresia");
     else setIsAuthed(true);
@@ -270,7 +273,7 @@ export default function MembresiaPortalPage() {
     );
   }
 
-  const membresiasActivas = membresias?.filter((m) => m.status === "ACTIVE" && m.sessionsRemaining > 0) ?? [];
+  const membresiasActivas = membresias?.filter((m) => m.status === "ACTIVE" && m.sessionsRemaining > 0 && new Date(m.expiresAt) > new Date()) ?? [];
   const step: 1 | 2 = preferenceId ? 2 : 1;
 
   return (
@@ -329,14 +332,14 @@ export default function MembresiaPortalPage() {
           )}
 
           {/* Historial colapsado */}
-          {(membresias?.filter((m) => m.status !== "ACTIVE" || m.sessionsRemaining === 0).length ?? 0) > 0 && (
+          {(membresias?.filter((m) => m.status !== "ACTIVE" || m.sessionsRemaining === 0 || new Date(m.expiresAt) <= new Date()).length ?? 0) > 0 && (
             <details className="mt-8 group">
               <summary className="cursor-pointer text-xs text-[#254F40]/40 hover:text-[#254F40]/60 transition-colors list-none flex items-center gap-1.5">
                 <ChevronRight className="w-3.5 h-3.5 transition-transform group-open:rotate-90" />
                 Ver historial de membresías
               </summary>
               <div className="mt-3 space-y-2">
-                {membresias?.filter((m) => m.status !== "ACTIVE" || m.sessionsRemaining === 0).map((m) => (
+                {membresias?.filter((m) => m.status !== "ACTIVE" || m.sessionsRemaining === 0 || new Date(m.expiresAt) <= new Date()).map((m) => (
                   <div key={m.id} className="bg-white border border-[#254F40]/8 rounded-xl p-3 flex items-center gap-3 opacity-50">
                     <div className="flex-1">
                       <p className="text-sm font-medium text-[#254F40]">{m.package.name}</p>

@@ -105,20 +105,23 @@ router.post(
         return;
       }
 
-      const existing = await prisma.reservation.findFirst({
-        where: { clientId, classId, status: { not: 'CANCELLED' } },
-      });
-      if (existing) {
-        ApiError(res, 'ALREADY_RESERVED', 'Client already has a reservation for this class', 409);
-        return;
-      }
-
-      // Puede existir una reservación cancelada — la restauramos en vez de crear nueva
-      const cancelada = await prisma.reservation.findFirst({
-        where: { clientId, classId, status: 'CANCELLED' },
-      });
-
       const reservacion = await prisma.$transaction(async (tx) => {
+        // H2: SELECT FOR UPDATE sobre el índice UNIQUE(clientId, classId) serializa txs
+        // concurrentes. Si la fila no existe: gap lock → previene INSERT simultáneo.
+        // Si existe cancelada: lock exclusivo → la segunda tx espera, luego ve CONFIRMED → error.
+        type LockRow = { id: string; status: string };
+        const [lockedRow] = await tx.$queryRaw<LockRow[]>`
+          SELECT id, status FROM reservations
+          WHERE clientId = ${clientId} AND classId = ${classId}
+          LIMIT 1
+          FOR UPDATE
+        `;
+
+        if (lockedRow && lockedRow.status !== 'CANCELLED') {
+          throw Object.assign(new Error('ALREADY_RESERVED'), { code: 'ALREADY_RESERVED' });
+        }
+        const canceladaId = lockedRow?.status === 'CANCELLED' ? lockedRow.id : undefined;
+
         // 1) Validar membresía ANTES de tocar spot/reserva.
         const membership = membershipId
           ? await validateMembershipForClass(tx, { membershipId, clientId, classId })
@@ -140,9 +143,9 @@ router.post(
         };
 
         // 3) Crear o restaurar reserva CONFIRMED
-        const result = cancelada
+        const result = canceladaId
           ? await tx.reservation.update({
-              where: { id: cancelada.id },
+              where: { id: canceladaId },
               data: {
                 membershipId: membershipId ?? null,
                 origin,
@@ -188,6 +191,7 @@ router.post(
       ApiSuccess(res, reservacion, 201);
     } catch (error: unknown) {
       const code = (error as { code?: string }).code;
+      if (code === 'ALREADY_RESERVED') return ApiError(res, 'ALREADY_RESERVED', 'Client already has a reservation for this class', 409);
       if (code === 'CLASS_FULL') return ApiError(res, 'CLASS_FULL', 'Class is at full capacity', 409);
       if (code === 'MEMBERSHIP_MISMATCH') return ApiError(res, 'MEMBERSHIP_MISMATCH', 'Membership does not belong to this client', 400);
       if (code === 'MEMBERSHIP_INVALID') return ApiError(res, 'MEMBERSHIP_INVALID', (error as { detail?: string }).detail ?? 'Membership is not usable', 400);

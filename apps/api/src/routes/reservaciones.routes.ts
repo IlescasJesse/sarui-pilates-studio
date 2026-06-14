@@ -4,8 +4,12 @@ import { requireRole } from '../middlewares/role.middleware';
 import { prisma } from '../config/database';
 import { ApiSuccess, ApiError } from '../utils/response';
 import { z } from 'zod';
-import { Prisma, PaymentMethod, type ReservationOrigin } from '@prisma/client';
-import { autoCreateIngreso } from '../services/membership.service';
+import { PaymentMethod, type ReservationOrigin } from '@prisma/client';
+import {
+  validateMembershipForClass,
+  chargeWalkIn,
+  releaseReservationEffects,
+} from '../services/reservaciones.service';
 
 const router = Router();
 
@@ -34,35 +38,6 @@ const reservacionSchema = z
 const patchReservacionSchema = z.object({
   status: z.enum(['CONFIRMED', 'CANCELLED', 'ATTENDED', 'NO_SHOW']),
 });
-
-// Libera el spot de la clase y restaura la sesión de membresía al cancelar una reserva.
-// Decremento condicional (spotsBooked > 0) evita valores negativos en doble-cancelación.
-// Reusado por PATCH /:id (transición a CANCELLED) y DELETE /:id.
-async function releaseReservationEffects(
-  tx: Prisma.TransactionClient,
-  reserva: { classId: string; membershipId: string | null },
-): Promise<void> {
-  await tx.$executeRaw`
-    UPDATE \`classes\` SET spotsBooked = spotsBooked - 1
-    WHERE id = ${reserva.classId} AND spotsBooked > 0
-  `;
-  if (reserva.membershipId) {
-    const membership = await tx.membership.findUnique({
-      where: { id: reserva.membershipId },
-      select: { id: true },
-    });
-    if (membership) {
-      await tx.membership.update({
-        where: { id: reserva.membershipId },
-        data: {
-          sessionsRemaining: { increment: 1 },
-          sessionsUsed: { decrement: 1 },
-          status: 'ACTIVE',
-        },
-      });
-    }
-  }
-}
 
 // GET /api/v1/reservaciones
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
@@ -117,8 +92,12 @@ router.post(
         return;
       }
 
+      const { clientId, classId, membershipId, notes, paymentMethod, amount } = parseResult.data;
+      // Derivar origin server-side: presencia de membershipId es la única fuente de verdad.
+      const origin: ReservationOrigin = membershipId ? 'MEMBERSHIP' : 'WALK_IN';
+
       const claseExiste = await prisma.class.findUnique({
-        where: { id: parseResult.data.classId },
+        where: { id: classId },
         select: { id: true },
       });
       if (!claseExiste) {
@@ -127,11 +106,7 @@ router.post(
       }
 
       const existing = await prisma.reservation.findFirst({
-        where: {
-          clientId: parseResult.data.clientId,
-          classId: parseResult.data.classId,
-          status: { not: 'CANCELLED' },
-        },
+        where: { clientId, classId, status: { not: 'CANCELLED' } },
       });
       if (existing) {
         ApiError(res, 'ALREADY_RESERVED', 'Client already has a reservation for this class', 409);
@@ -140,65 +115,14 @@ router.post(
 
       // Puede existir una reservación cancelada — la restauramos en vez de crear nueva
       const cancelada = await prisma.reservation.findFirst({
-        where: {
-          clientId: parseResult.data.clientId,
-          classId: parseResult.data.classId,
-          status: 'CANCELLED',
-        },
+        where: { clientId, classId, status: 'CANCELLED' },
       });
-
-      const { clientId, classId, membershipId, notes, paymentMethod, amount } = parseResult.data;
-      // Derivar origin server-side: NO confiar en el campo del cliente. La presencia de
-      // membershipId es la única fuente de verdad — evita que un payload con
-      // origin:'MEMBERSHIP' sin membershipId pero con pago salte el cobro walk-in.
-      const origin: ReservationOrigin = membershipId ? 'MEMBERSHIP' : 'WALK_IN';
 
       const reservacion = await prisma.$transaction(async (tx) => {
         // 1) Validar membresía ANTES de tocar spot/reserva.
-        //    Si es inválida abortamos la transacción → no queda reserva viva sin descuento.
         const membership = membershipId
-          ? await tx.membership.findUnique({
-              where: { id: membershipId },
-              include: { package: { select: { tipoActividadId: true } } },
-            })
+          ? await validateMembershipForClass(tx, { membershipId, clientId, classId })
           : null;
-        if (membershipId) {
-          if (!membership || membership.deletedAt) {
-            throw Object.assign(new Error('MEMBERSHIP_INVALID'), {
-              code: 'MEMBERSHIP_INVALID',
-              detail: 'Membership not found',
-            });
-          }
-          if (membership.clientId !== clientId) {
-            throw Object.assign(new Error('MEMBERSHIP_MISMATCH'), { code: 'MEMBERSHIP_MISMATCH' });
-          }
-          if (
-            membership.status !== 'ACTIVE' ||
-            membership.sessionsRemaining <= 0 ||
-            membership.expiresAt <= new Date()
-          ) {
-            throw Object.assign(new Error('MEMBERSHIP_INVALID'), {
-              code: 'MEMBERSHIP_INVALID',
-              detail:
-                membership.sessionsRemaining <= 0
-                  ? 'Membership has no sessions remaining'
-                  : membership.expiresAt <= new Date()
-                    ? 'Membership has expired'
-                    : 'Membership is not active',
-            });
-          }
-          // Decisión 2026-05-28: check de tipo de actividad POR CLASE.
-          const pkgTipoId = membership.package.tipoActividadId;
-          if (pkgTipoId) {
-            const clase = await tx.class.findUnique({
-              where: { id: classId },
-              select: { tipoActividadId: true },
-            });
-            if (clase?.tipoActividadId && clase.tipoActividadId !== pkgTipoId) {
-              throw Object.assign(new Error('CLASS_TYPE_MISMATCH'), { code: 'CLASS_TYPE_MISMATCH' });
-            }
-          }
-        }
 
         // 2) Incremento atómico: solo actualiza si hay lugares disponibles
         const slotsUpdated = await tx.$executeRaw`
@@ -231,18 +155,11 @@ router.post(
               include,
             })
           : await tx.reservation.create({
-              data: {
-                clientId,
-                classId,
-                membershipId,
-                origin,
-                status: 'CONFIRMED',
-                notes,
-              },
+              data: { clientId, classId, membershipId, origin, status: 'CONFIRMED', notes },
               include,
             });
 
-        // 4) Consumir sesión (membresía ya validada arriba)
+        // 4) Consumir sesión de membresía
         if (membershipId && membership) {
           await tx.membership.update({
             where: { id: membershipId },
@@ -254,39 +171,13 @@ router.post(
           });
         }
 
-        // 5) Cobro walk-in (clase suelta) — Payment + Ingreso contable
+        // 5) Cobro walk-in — Payment + Ingreso contable (cuenta 402)
         if (origin === 'WALK_IN' && paymentMethod && amount != null) {
-          const now = new Date();
-          // payment.reservationId es @unique; una reserva restaurada puede ya tener uno.
-          const existingPayment = await tx.payment.findUnique({
-            where: { reservationId: result.id },
-            select: { id: true },
-          });
-          if (existingPayment) {
-            await tx.payment.update({
-              where: { id: existingPayment.id },
-              data: { amount, method: paymentMethod, status: 'PAID', paidAt: now },
-            });
-          } else {
-            await tx.payment.create({
-              data: {
-                reservationId: result.id,
-                amount,
-                method: paymentMethod,
-                status: 'PAID',
-                paidAt: now,
-              },
-            });
-          }
-
-          await autoCreateIngreso(tx, {
-            monto: amount,
-            concepto: `Clase suelta - ${result.class.title ?? 'Walk-in'}`,
-            fecha: now,
-            origen: 'WALK_IN',
-            referenciaId: result.id,
-            cuentaCodigo: '402',
-            cuentaNombre: 'Ingresos por clases sueltas',
+          await chargeWalkIn(tx, {
+            reservationId: result.id,
+            classTitle: result.class.title,
+            amount,
+            paymentMethod,
             creadoPorId: req.user?.id,
           });
         }
@@ -297,32 +188,10 @@ router.post(
       ApiSuccess(res, reservacion, 201);
     } catch (error: unknown) {
       const code = (error as { code?: string }).code;
-      if (code === 'CLASS_FULL') {
-        ApiError(res, 'CLASS_FULL', 'Class is at full capacity', 409);
-        return;
-      }
-      if (code === 'MEMBERSHIP_MISMATCH') {
-        ApiError(res, 'MEMBERSHIP_MISMATCH', 'Membership does not belong to this client', 400);
-        return;
-      }
-      if (code === 'MEMBERSHIP_INVALID') {
-        ApiError(
-          res,
-          'MEMBERSHIP_INVALID',
-          (error as { detail?: string }).detail ?? 'Membership is not usable',
-          400,
-        );
-        return;
-      }
-      if (code === 'CLASS_TYPE_MISMATCH') {
-        ApiError(
-          res,
-          'CLASS_TYPE_MISMATCH',
-          'This membership does not apply to this class type',
-          400,
-        );
-        return;
-      }
+      if (code === 'CLASS_FULL') return ApiError(res, 'CLASS_FULL', 'Class is at full capacity', 409);
+      if (code === 'MEMBERSHIP_MISMATCH') return ApiError(res, 'MEMBERSHIP_MISMATCH', 'Membership does not belong to this client', 400);
+      if (code === 'MEMBERSHIP_INVALID') return ApiError(res, 'MEMBERSHIP_INVALID', (error as { detail?: string }).detail ?? 'Membership is not usable', 400);
+      if (code === 'CLASS_TYPE_MISMATCH') return ApiError(res, 'CLASS_TYPE_MISMATCH', 'This membership does not apply to this class type', 400);
       next(error);
     }
   }
@@ -409,19 +278,13 @@ router.patch(
         return;
       }
 
-      // No resucitar una reserva cancelada vía PATCH: re-bookear requiere chequeo de cupo
-      // y descuento de sesión (flujo POST). PATCH no debe saltarse eso.
+      // No resucitar una reserva cancelada vía PATCH: re-bookear requiere flujo POST.
       if (current.status === 'CANCELLED' && status !== 'CANCELLED') {
-        ApiError(
-          res,
-          'INVALID_TRANSITION',
-          'Use the reservation flow to re-book a cancelled reservation',
-          400,
-        );
+        ApiError(res, 'INVALID_TRANSITION', 'Use the reservation flow to re-book a cancelled reservation', 400);
         return;
       }
 
-      // Transición a CANCELLED: liberar spot + restaurar sesión atómicamente (igual que DELETE).
+      // Transición a CANCELLED: liberar spot + restaurar sesión atómicamente.
       if (status === 'CANCELLED' && current.status !== 'CANCELLED') {
         const updated = await prisma.$transaction(async (tx) => {
           const r = await tx.reservation.update({
@@ -436,10 +299,7 @@ router.patch(
       }
 
       // Resto de transiciones (CONFIRMED/ATTENDED/NO_SHOW): solo actualizar status.
-      const reservacion = await prisma.reservation.update({
-        where: { id },
-        data: { status },
-      });
+      const reservacion = await prisma.reservation.update({ where: { id }, data: { status } });
       ApiSuccess(res, reservacion);
     } catch (error) {
       next(error);
@@ -464,8 +324,7 @@ router.delete(
         return;
       }
 
-      // Idempotente: si ya está cancelada, no liberar de nuevo (evita spot negativo
-      // y sesión inflada por doble-cancelación).
+      // Idempotente: si ya está cancelada no liberar de nuevo.
       if (reservacion.status === 'CANCELLED') {
         ApiSuccess(res, { message: 'Reservación ya estaba cancelada' });
         return;
@@ -486,22 +345,19 @@ router.delete(
   }
 );
 
-// PATCH /api/v1/reservaciones/:id/aprobar  — solo ADMIN/INSTRUCTOR
+// PATCH /api/v1/reservaciones/:id/aprobar
 router.patch(
   '/:id/aprobar',
   requireRole('ADMIN', 'INSTRUCTOR'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = req.params.id as string;
-      const reservacion = await prisma.reservation.findUnique({
-        where: { id },
-      });
+      const reservacion = await prisma.reservation.findUnique({ where: { id } });
 
       if (!reservacion) {
         ApiError(res, 'NOT_FOUND', 'Reservación no encontrada', 404);
         return;
       }
-
       if (reservacion.status !== 'PENDING_APPROVAL') {
         ApiError(res, 'INVALID_STATUS', 'Solo se pueden aprobar solicitudes pendientes', 400);
         return;
@@ -531,7 +387,9 @@ router.patch(
         `🔑 Tu código QR para el kiosk: ${clientInfo?.qrCode ?? ''}\n\n` +
         `📍 Preséntalo en la entrada del estudio.`
       );
-      const waLink = clientInfo?.phone ? `https://wa.me/${clientInfo.phone.replace(/[^0-9]/g, '')}?text=${waMsg}` : null;
+      const waLink = clientInfo?.phone
+        ? `https://wa.me/${clientInfo.phone.replace(/[^0-9]/g, '')}?text=${waMsg}`
+        : null;
 
       ApiSuccess(res, { ...updated, waLink });
     } catch (error) {
@@ -540,7 +398,7 @@ router.patch(
   }
 );
 
-// PATCH /api/v1/reservaciones/:id/declinar  — solo ADMIN/INSTRUCTOR
+// PATCH /api/v1/reservaciones/:id/declinar
 router.patch(
   '/:id/declinar',
   requireRole('ADMIN', 'INSTRUCTOR'),
@@ -549,15 +407,12 @@ router.patch(
       const id = req.params.id as string;
       const { razon } = req.body as { razon?: string };
 
-      const reservacion = await prisma.reservation.findUnique({
-        where: { id },
-      });
+      const reservacion = await prisma.reservation.findUnique({ where: { id } });
 
       if (!reservacion) {
         ApiError(res, 'NOT_FOUND', 'Reservación no encontrada', 404);
         return;
       }
-
       if (reservacion.status !== 'PENDING_APPROVAL') {
         ApiError(res, 'INVALID_STATUS', 'Solo se pueden declinar solicitudes pendientes', 400);
         return;
@@ -566,37 +421,9 @@ router.patch(
       const updated = await prisma.$transaction(async (tx) => {
         const r = await tx.reservation.update({
           where: { id },
-          data: {
-            status: 'CANCELLED',
-            cancelledAt: new Date(),
-            portalDeclineReason: razon ?? null,
-          },
+          data: { status: 'CANCELLED', cancelledAt: new Date(), portalDeclineReason: razon ?? null },
         });
-
-        // Liberar el spot en la clase
-        await tx.class.update({
-          where: { id: reservacion.classId },
-          data: { spotsBooked: { decrement: 1 } },
-        });
-
-        // Restaurar sesión si usó membresía
-        if (reservacion.membershipId) {
-          const membership = await tx.membership.findUnique({
-            where: { id: reservacion.membershipId },
-            select: { sessionsRemaining: true, sessionsUsed: true },
-          });
-          if (membership) {
-            await tx.membership.update({
-              where: { id: reservacion.membershipId },
-              data: {
-                sessionsRemaining: { increment: 1 },
-                sessionsUsed: { decrement: 1 },
-                status: 'ACTIVE',
-              },
-            });
-          }
-        }
-
+        await releaseReservationEffects(tx, reservacion);
         return r;
       });
 

@@ -4,7 +4,7 @@ import { requireRole } from '../middlewares/role.middleware';
 import { prisma } from '../config/database';
 import { ApiSuccess, ApiError } from '../utils/response';
 import { z } from 'zod';
-import { PaymentMethod, type ReservationOrigin } from '@prisma/client';
+import { Prisma, PaymentMethod, type ReservationOrigin } from '@prisma/client';
 import { autoCreateIngreso } from '../services/membership.service';
 
 const router = Router();
@@ -30,6 +30,39 @@ const reservacionSchema = z
     message: 'paymentMethod and amount must be provided together',
     path: ['amount'],
   });
+
+const patchReservacionSchema = z.object({
+  status: z.enum(['CONFIRMED', 'CANCELLED', 'ATTENDED', 'NO_SHOW']),
+});
+
+// Libera el spot de la clase y restaura la sesión de membresía al cancelar una reserva.
+// Decremento condicional (spotsBooked > 0) evita valores negativos en doble-cancelación.
+// Reusado por PATCH /:id (transición a CANCELLED) y DELETE /:id.
+async function releaseReservationEffects(
+  tx: Prisma.TransactionClient,
+  reserva: { classId: string; membershipId: string | null },
+): Promise<void> {
+  await tx.$executeRaw`
+    UPDATE \`classes\` SET spotsBooked = spotsBooked - 1
+    WHERE id = ${reserva.classId} AND spotsBooked > 0
+  `;
+  if (reserva.membershipId) {
+    const membership = await tx.membership.findUnique({
+      where: { id: reserva.membershipId },
+      select: { id: true },
+    });
+    if (membership) {
+      await tx.membership.update({
+        where: { id: reserva.membershipId },
+        data: {
+          sessionsRemaining: { increment: 1 },
+          sessionsUsed: { decrement: 1 },
+          status: 'ACTIVE',
+        },
+      });
+    }
+  }
+}
 
 // GET /api/v1/reservaciones
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
@@ -359,13 +392,54 @@ router.patch(
   requireRole('ADMIN'),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { status } = req.body as { status?: string };
+      const parsed = patchReservacionSchema.safeParse(req.body);
+      if (!parsed.success) {
+        ApiError(res, 'VALIDATION_ERROR', 'Invalid reservation status', 400);
+        return;
+      }
+      const { status } = parsed.data;
+      const id = req.params.id as string;
 
-      const reservacion = await prisma.reservation.update({
-        where: { id: req.params.id as string },
-        data: { status: status as 'CONFIRMED' | 'CANCELLED' | 'ATTENDED' | 'NO_SHOW' },
+      const current = await prisma.reservation.findUnique({
+        where: { id },
+        select: { status: true, classId: true, membershipId: true },
       });
+      if (!current) {
+        ApiError(res, 'NOT_FOUND', 'Reservation not found', 404);
+        return;
+      }
 
+      // No resucitar una reserva cancelada vía PATCH: re-bookear requiere chequeo de cupo
+      // y descuento de sesión (flujo POST). PATCH no debe saltarse eso.
+      if (current.status === 'CANCELLED' && status !== 'CANCELLED') {
+        ApiError(
+          res,
+          'INVALID_TRANSITION',
+          'Use the reservation flow to re-book a cancelled reservation',
+          400,
+        );
+        return;
+      }
+
+      // Transición a CANCELLED: liberar spot + restaurar sesión atómicamente (igual que DELETE).
+      if (status === 'CANCELLED' && current.status !== 'CANCELLED') {
+        const updated = await prisma.$transaction(async (tx) => {
+          const r = await tx.reservation.update({
+            where: { id },
+            data: { status: 'CANCELLED', cancelledAt: new Date() },
+          });
+          await releaseReservationEffects(tx, current);
+          return r;
+        });
+        ApiSuccess(res, updated);
+        return;
+      }
+
+      // Resto de transiciones (CONFIRMED/ATTENDED/NO_SHOW): solo actualizar status.
+      const reservacion = await prisma.reservation.update({
+        where: { id },
+        data: { status },
+      });
       ApiSuccess(res, reservacion);
     } catch (error) {
       next(error);
@@ -382,11 +456,18 @@ router.delete(
       const id = req.params.id as string;
       const reservacion = await prisma.reservation.findUnique({
         where: { id },
-        select: { id: true, membershipId: true, classId: true },
+        select: { id: true, status: true, membershipId: true, classId: true },
       });
 
       if (!reservacion) {
         ApiError(res, 'NOT_FOUND', 'Reservación no encontrada', 404);
+        return;
+      }
+
+      // Idempotente: si ya está cancelada, no liberar de nuevo (evita spot negativo
+      // y sesión inflada por doble-cancelación).
+      if (reservacion.status === 'CANCELLED') {
+        ApiSuccess(res, { message: 'Reservación ya estaba cancelada' });
         return;
       }
 
@@ -395,28 +476,7 @@ router.delete(
           where: { id },
           data: { status: 'CANCELLED', cancelledAt: new Date() },
         });
-
-        await tx.class.update({
-          where: { id: reservacion.classId },
-          data: { spotsBooked: { decrement: 1 } },
-        });
-
-        if (reservacion.membershipId) {
-          const membership = await tx.membership.findUnique({
-            where: { id: reservacion.membershipId },
-            select: { sessionsRemaining: true, sessionsUsed: true },
-          });
-          if (membership) {
-            await tx.membership.update({
-              where: { id: reservacion.membershipId },
-              data: {
-                sessionsRemaining: { increment: 1 },
-                sessionsUsed: { decrement: 1 },
-                status: 'ACTIVE',
-              },
-            });
-          }
-        }
+        await releaseReservationEffects(tx, reservacion);
       });
 
       ApiSuccess(res, { message: 'Reservación cancelada' });

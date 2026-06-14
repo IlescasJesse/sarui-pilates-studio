@@ -23,17 +23,26 @@ const claseSchema = z.object({
   notes: z.string().trim().optional(),
 });
 
-const patchClaseSchema = z.object({
-  startAt: z.string().trim().datetime().optional(),
-  endAt: z.string().trim().datetime().optional(),
-  instructorId: z.string().trim().optional(),
-  capacity: z.number().int().min(1).max(50).optional(),
-  location: z.string().trim().optional(),
-  notes: z.string().trim().optional(),
-  isCancelled: z.boolean().optional(),
-  cancelReason: z.string().trim().optional(),
-  isActive: z.boolean().optional(),
-});
+const patchClaseSchema = z
+  .object({
+    startAt: z.string().trim().datetime({ message: 'startAt must be ISO datetime' }).optional(),
+    endAt: z.string().trim().datetime({ message: 'endAt must be ISO datetime' }).optional(),
+    instructorId: z.string().trim().min(1).optional(),
+    capacity: z.number().int().min(1).max(50).optional(),
+    title: z.string().trim().min(1).max(120).optional(),
+    location: z.string().trim().optional(),
+    notes: z.string().trim().optional(),
+    isCancelled: z.boolean().optional(),
+    cancelReason: z.string().trim().optional(),
+    isActive: z.boolean().optional(),
+  })
+  .refine(
+    (d) => {
+      if (d.startAt && d.endAt) return new Date(d.endAt) > new Date(d.startAt);
+      return true;
+    },
+    { message: 'endAt must be after startAt', path: ['endAt'] }
+  );
 
 // GET /api/v1/clases?startDate=&endDate=
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
@@ -195,22 +204,138 @@ router.patch(
         return;
       }
 
-      const { startAt, endAt, ...rest } = parseResult.data;
-      const clase = await prisma.class.update({
-        where: { id: req.params.id as string },
+      const classId = req.params.id as string;
+      const body = parseResult.data;
+
+      // Fetch current class
+      const existing = await prisma.class.findUnique({
+        where: { id: classId },
+        select: {
+          id: true,
+          isCancelled: true,
+          deletedAt: true,
+          startAt: true,
+          endAt: true,
+          instructorId: true,
+          spotsBooked: true,
+        },
+      });
+
+      if (!existing) {
+        ApiError(res, 'NOT_FOUND', 'Class not found', 404);
+        return;
+      }
+
+      if (existing.isCancelled || existing.deletedAt !== null) {
+        ApiError(res, 'CLASS_NOT_EDITABLE', 'Cannot edit a cancelled or deleted class', 400);
+        return;
+      }
+
+      const newStartAt = body.startAt ? new Date(body.startAt) : existing.startAt;
+      const newEndAt = body.endAt ? new Date(body.endAt) : existing.endAt;
+      const newInstructorId = body.instructorId ?? existing.instructorId;
+
+      const scheduleChanging =
+        body.startAt !== undefined ||
+        body.endAt !== undefined ||
+        body.instructorId !== undefined;
+
+      // CLASS_IN_PAST: only block if schedule is changing
+      if (scheduleChanging && body.startAt !== undefined) {
+        const now = new Date();
+        if (newStartAt < now) {
+          ApiError(res, 'CLASS_IN_PAST', 'Cannot reschedule a class to a past time', 400);
+          return;
+        }
+      }
+
+      // CAPACITY_BELOW_BOOKED
+      if (body.capacity !== undefined && body.capacity < existing.spotsBooked) {
+        ApiError(
+          res,
+          'CAPACITY_BELOW_BOOKED',
+          `New capacity (${body.capacity}) is less than current bookings (${existing.spotsBooked})`,
+          400
+        );
+        return;
+      }
+
+      // INSTRUCTOR_OVERLAP: check only when schedule or instructor changes
+      if (scheduleChanging) {
+        const overlap = await prisma.class.findFirst({
+          where: {
+            id: { not: classId },
+            instructorId: newInstructorId,
+            isCancelled: false,
+            deletedAt: null,
+            startAt: { lt: newEndAt },
+            endAt: { gt: newStartAt },
+          },
+          select: {
+            id: true,
+            title: true,
+            startAt: true,
+            endAt: true,
+          },
+        });
+
+        if (overlap) {
+          res.status(409).json({
+            success: false,
+            error: {
+              code: 'INSTRUCTOR_OVERLAP',
+              message: 'Instructor already has a class scheduled in that time slot',
+              conflict: {
+                id: overlap.id,
+                title: overlap.title,
+                startAt: overlap.startAt.toISOString(),
+                endAt: overlap.endAt.toISOString(),
+              },
+            },
+          });
+          return;
+        }
+      }
+
+      // Count affected reservations when rescheduling
+      let affectedReservations: number | undefined;
+      if (body.startAt !== undefined || body.endAt !== undefined) {
+        affectedReservations = await prisma.reservation.count({
+          where: { classId, status: { not: 'CANCELLED' } },
+        });
+      }
+
+      // Apply update
+      const updated = await prisma.class.update({
+        where: { id: classId },
         data: {
-          ...rest,
-          ...(startAt ? { startAt: new Date(startAt) } : {}),
-          ...(endAt ? { endAt: new Date(endAt) } : {}),
+          ...(body.title !== undefined ? { title: body.title } : {}),
+          ...(body.instructorId !== undefined ? { instructorId: body.instructorId } : {}),
+          ...(body.capacity !== undefined ? { capacity: body.capacity } : {}),
+          ...(body.location !== undefined ? { location: body.location } : {}),
+          ...(body.notes !== undefined ? { notes: body.notes } : {}),
+          ...(body.isCancelled !== undefined ? { isCancelled: body.isCancelled } : {}),
+          ...(body.cancelReason !== undefined ? { cancelReason: body.cancelReason } : {}),
+          ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
+          ...(body.startAt !== undefined ? { startAt: newStartAt } : {}),
+          ...(body.endAt !== undefined ? { endAt: newEndAt } : {}),
         },
         include: {
           instructor: {
             select: { id: true, firstName: true, lastName: true },
           },
+          tipoActividad: {
+            select: { id: true, nombre: true, color: true },
+          },
         },
       });
 
-      ApiSuccess(res, clase);
+      const responseData =
+        affectedReservations !== undefined
+          ? { ...updated, affectedReservations }
+          : updated;
+
+      ApiSuccess(res, responseData);
     } catch (error) {
       next(error);
     }

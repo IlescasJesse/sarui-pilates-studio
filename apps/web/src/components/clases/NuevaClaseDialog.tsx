@@ -151,11 +151,14 @@ export function NuevaClaseDialog({ slot, onClose }: NuevaClaseDialogProps) {
               Capacidad
             </label>
             <Input
-              type="number"
-              min={1}
-              max={50}
-              value={capacidad}
-              onChange={(e) => setCapacidad(Number(e.target.value))}
+              inputMode="numeric"
+              value={capacidad === 0 ? "" : String(capacidad)}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, "");
+                const n = parseInt(v, 10);
+                setCapacidad(isNaN(n) ? 0 : Math.min(50, Math.max(1, n)));
+              }}
+              placeholder="Ej. 12"
               required
             />
           </div>

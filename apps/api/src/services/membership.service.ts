@@ -1,4 +1,4 @@
-import { Prisma, PaymentMethod } from '@prisma/client';
+import { Prisma, PaymentMethod, OrigenIngreso } from '@prisma/client';
 
 export async function activateMembershipFromPayment(
   tx: Prisma.TransactionClient,
@@ -116,29 +116,40 @@ export async function activateMembershipFromPayment(
   }
 
   await autoCreateIngreso(tx, {
-    membershipId,
     monto: Number(params.transactionAmount ?? pkg.price),
     concepto: `Membresía ${pkg.name} - MP`,
     fecha: params.paidAt,
+    origen: 'PORTAL_MERCADOPAGO',
+    referenciaId: membershipId,
+    cuentaCodigo: '401-ING',
+    cuentaNombre: 'Ingresos por Membresías MP',
     creadoPorId: params.creadoPorId,
   });
 
   return { membershipId };
 }
 
-async function autoCreateIngreso(
+/**
+ * Creates an accounting income (Ingreso) entry inside an existing transaction.
+ * Upserts the target accounting account so it is safe even on a fresh catalog.
+ * Reused by MercadoPago membership flow and walk-in single-class payments.
+ */
+export async function autoCreateIngreso(
   tx: Prisma.TransactionClient,
   params: {
-    membershipId: string;
     monto: number;
     concepto: string;
     fecha: Date;
+    origen: OrigenIngreso;
+    referenciaId: string;
+    cuentaCodigo: string;
+    cuentaNombre: string;
     creadoPorId?: string;
   }
 ): Promise<void> {
   const cuenta = await tx.cuentaContable.upsert({
-    where: { codigo: '401-ING' },
-    create: { codigo: '401-ING', nombre: 'Ingresos por Membresías MP', tipo: 'INGRESO' },
+    where: { codigo: params.cuentaCodigo },
+    create: { codigo: params.cuentaCodigo, nombre: params.cuentaNombre, tipo: 'INGRESO' },
     update: {},
   });
 
@@ -146,7 +157,7 @@ async function autoCreateIngreso(
   if (!creadoPorId) {
     const admin = await tx.user.findFirst({ where: { role: 'ADMIN' }, select: { id: true } });
     if (!admin) {
-      console.warn('[membership] No se encontró admin para crear Ingreso automático');
+      console.warn('[ingreso] No se encontró admin para crear Ingreso automático');
       return;
     }
     creadoPorId = admin.id;
@@ -158,8 +169,8 @@ async function autoCreateIngreso(
       concepto: params.concepto,
       monto: params.monto,
       fecha: params.fecha,
-      origen: 'PORTAL_MERCADOPAGO',
-      referenciaId: params.membershipId,
+      origen: params.origen,
+      referenciaId: params.referenciaId,
       creadoPorId,
     },
   });

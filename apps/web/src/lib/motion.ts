@@ -14,6 +14,7 @@
  */
 
 import { useReducedMotion } from "framer-motion";
+import { useState, useEffect } from "react";
 import type { Variants, Transition } from "framer-motion";
 
 // ─── §1 Tokens ────────────────────────────────────────────────────────────────
@@ -361,7 +362,13 @@ export interface MotionTokens {
  *  - capacityBar jumps to final value immediately.
  */
 export function useMotionTokens(): MotionTokens {
-  const reduced = useReducedMotion() ?? false;
+  const systemReduced = useReducedMotion();
+  // Start as false to match SSR output (no browser preference available on server).
+  // After mount, switch to the real system value — avoids hydration mismatch when
+  // the user has prefers-reduced-motion enabled (SSR renders animated initial values;
+  // client with reduced=true immediately wants transform:none → mismatch).
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => { setReduced(systemReduced ?? false); }, [systemReduced]);
 
   if (reduced) {
     return {

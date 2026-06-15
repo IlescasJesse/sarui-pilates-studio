@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-/** Construye un Date en CDMX (UTC-6) para la semana 27 Abr – 2 May 2026 */
+/** Construye un Date en CDMX (UTC-6) para la semana 16–21 Jun 2026 */
 function dt(isoDate: string, hour: number, minute = 0): Date {
   // isoDate = 'YYYY-MM-DD', interpretado en UTC para consistencia en DB
   return new Date(`${isoDate}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00.000Z`);
@@ -17,91 +17,91 @@ function addMinutes(d: Date, m: number): Date {
   return new Date(d.getTime() + m * 60_000);
 }
 
-// ── Horario Reformer semana 27 Abr – 2 May 2026 ───────────────────────────────
+// ── Horario Reformer semana 16–21 Jun 2026 ────────────────────────────────────
 // Fuente: cartel oficial. Flow/Power/Mobility son variantes de la clase Reformer.
 // 19:00 Lunes marcado como cancelado en cartel → isCancelled: true
 const REFORMER_SCHEDULE: Array<{ date: string; hour: number; minute?: number; tipo: 'FLOW' | 'POWER' | 'MOBILITY'; cancelled?: boolean }> = [
-  // Lunes 27
-  { date: '2026-04-27', hour: 7,  tipo: 'MOBILITY' },
-  { date: '2026-04-27', hour: 8,  tipo: 'POWER' },
-  { date: '2026-04-27', hour: 9,  tipo: 'FLOW' },
-  { date: '2026-04-27', hour: 17, tipo: 'FLOW' },
-  { date: '2026-04-27', hour: 18, tipo: 'FLOW' },
-  { date: '2026-04-27', hour: 19, tipo: 'FLOW', cancelled: true },
-  // Martes 28
-  { date: '2026-04-28', hour: 7,  tipo: 'POWER' },
-  { date: '2026-04-28', hour: 8,  tipo: 'FLOW' },
-  { date: '2026-04-28', hour: 9,  tipo: 'MOBILITY' },
-  { date: '2026-04-28', hour: 17, tipo: 'POWER' },
-  { date: '2026-04-28', hour: 18, tipo: 'MOBILITY' },
-  { date: '2026-04-28', hour: 19, tipo: 'MOBILITY' },
-  // Miércoles 29
-  { date: '2026-04-29', hour: 7,  tipo: 'MOBILITY' },
-  { date: '2026-04-29', hour: 8,  tipo: 'POWER' },
-  { date: '2026-04-29', hour: 9,  tipo: 'POWER' },
-  { date: '2026-04-29', hour: 17, tipo: 'MOBILITY' },
-  { date: '2026-04-29', hour: 18, tipo: 'FLOW' },
-  { date: '2026-04-29', hour: 19, tipo: 'POWER' },
-  // Jueves 30
-  { date: '2026-04-30', hour: 7,  tipo: 'POWER' },
-  { date: '2026-04-30', hour: 8,  tipo: 'FLOW' },
-  { date: '2026-04-30', hour: 9,  tipo: 'MOBILITY' },
-  { date: '2026-04-30', hour: 17, tipo: 'POWER' },
-  { date: '2026-04-30', hour: 18, tipo: 'POWER' },
-  { date: '2026-04-30', hour: 19, tipo: 'FLOW' },
-  // Viernes 1
-  { date: '2026-05-01', hour: 7,  tipo: 'FLOW' },
-  { date: '2026-05-01', hour: 8,  tipo: 'POWER' },
-  { date: '2026-05-01', hour: 9,  tipo: 'POWER' },
-  { date: '2026-05-01', hour: 17, tipo: 'POWER' },
-  { date: '2026-05-01', hour: 18, tipo: 'FLOW' },
-  { date: '2026-05-01', hour: 19, tipo: 'POWER' },
-  // Sábado 2 (horario especial: 7:30 y 8:30)
-  { date: '2026-05-02', hour: 7, minute: 30, tipo: 'MOBILITY' },
-  { date: '2026-05-02', hour: 8, minute: 30, tipo: 'MOBILITY' },
+  // Lunes 16
+  { date: '2026-06-16', hour: 7,  tipo: 'MOBILITY' },
+  { date: '2026-06-16', hour: 8,  tipo: 'POWER' },
+  { date: '2026-06-16', hour: 9,  tipo: 'FLOW' },
+  { date: '2026-06-16', hour: 17, tipo: 'FLOW' },
+  { date: '2026-06-16', hour: 18, tipo: 'FLOW' },
+  { date: '2026-06-16', hour: 19, tipo: 'FLOW', cancelled: true },
+  // Martes 17
+  { date: '2026-06-17', hour: 7,  tipo: 'POWER' },
+  { date: '2026-06-17', hour: 8,  tipo: 'FLOW' },
+  { date: '2026-06-17', hour: 9,  tipo: 'MOBILITY' },
+  { date: '2026-06-17', hour: 17, tipo: 'POWER' },
+  { date: '2026-06-17', hour: 18, tipo: 'MOBILITY' },
+  { date: '2026-06-17', hour: 19, tipo: 'MOBILITY' },
+  // Miércoles 18
+  { date: '2026-06-18', hour: 7,  tipo: 'MOBILITY' },
+  { date: '2026-06-18', hour: 8,  tipo: 'POWER' },
+  { date: '2026-06-18', hour: 9,  tipo: 'POWER' },
+  { date: '2026-06-18', hour: 17, tipo: 'MOBILITY' },
+  { date: '2026-06-18', hour: 18, tipo: 'FLOW' },
+  { date: '2026-06-18', hour: 19, tipo: 'POWER' },
+  // Jueves 19
+  { date: '2026-06-19', hour: 7,  tipo: 'POWER' },
+  { date: '2026-06-19', hour: 8,  tipo: 'FLOW' },
+  { date: '2026-06-19', hour: 9,  tipo: 'MOBILITY' },
+  { date: '2026-06-19', hour: 17, tipo: 'POWER' },
+  { date: '2026-06-19', hour: 18, tipo: 'POWER' },
+  { date: '2026-06-19', hour: 19, tipo: 'FLOW' },
+  // Viernes 20
+  { date: '2026-06-20', hour: 7,  tipo: 'FLOW' },
+  { date: '2026-06-20', hour: 8,  tipo: 'POWER' },
+  { date: '2026-06-20', hour: 9,  tipo: 'POWER' },
+  { date: '2026-06-20', hour: 17, tipo: 'POWER' },
+  { date: '2026-06-20', hour: 18, tipo: 'FLOW' },
+  { date: '2026-06-20', hour: 19, tipo: 'POWER' },
+  // Sábado 21 (horario especial: 7:30 y 8:30)
+  { date: '2026-06-21', hour: 7, minute: 30, tipo: 'MOBILITY' },
+  { date: '2026-06-21', hour: 8, minute: 30, tipo: 'MOBILITY' },
 ];
 
-// ── Horario Mat semana 27 Abr – 2 May 2026 ────────────────────────────────────
+// ── Horario Mat semana 16–21 Jun 2026 ─────────────────────────────────────────
 // GAP = Glúteos, Abdomen, Piernas — variante de clase Mat
 const MAT_SCHEDULE: Array<{ date: string; hour: number; minute?: number; tipo: 'MAT' | 'GAP' }> = [
-  // Lunes 27
-  { date: '2026-04-27', hour: 7,  tipo: 'MAT' },
-  { date: '2026-04-27', hour: 8,  tipo: 'GAP' },
-  { date: '2026-04-27', hour: 9,  tipo: 'MAT' },
-  { date: '2026-04-27', hour: 17, tipo: 'MAT' },
-  { date: '2026-04-27', hour: 18, tipo: 'GAP' },
-  { date: '2026-04-27', hour: 19, tipo: 'MAT' },
-  // Martes 28
-  { date: '2026-04-28', hour: 7,  tipo: 'MAT' },
-  { date: '2026-04-28', hour: 8,  tipo: 'MAT' },
-  { date: '2026-04-28', hour: 9,  tipo: 'MAT' },
-  { date: '2026-04-28', hour: 17, tipo: 'MAT' },
-  { date: '2026-04-28', hour: 18, tipo: 'MAT' },
-  { date: '2026-04-28', hour: 19, tipo: 'MAT' },
-  // Miércoles 29
-  { date: '2026-04-29', hour: 7,  tipo: 'MAT' },
-  { date: '2026-04-29', hour: 8,  tipo: 'GAP' },
-  { date: '2026-04-29', hour: 9,  tipo: 'MAT' },
-  { date: '2026-04-29', hour: 17, tipo: 'MAT' },
-  { date: '2026-04-29', hour: 18, tipo: 'GAP' },
-  { date: '2026-04-29', hour: 19, tipo: 'MAT' },
-  // Jueves 30
-  { date: '2026-04-30', hour: 7,  tipo: 'MAT' },
-  { date: '2026-04-30', hour: 8,  tipo: 'MAT' },
-  { date: '2026-04-30', hour: 9,  tipo: 'MAT' },
-  { date: '2026-04-30', hour: 17, tipo: 'MAT' },
-  { date: '2026-04-30', hour: 18, tipo: 'MAT' },
-  { date: '2026-04-30', hour: 19, tipo: 'MAT' },
-  // Viernes 1
-  { date: '2026-05-01', hour: 7,  tipo: 'MAT' },
-  { date: '2026-05-01', hour: 8,  tipo: 'GAP' },
-  { date: '2026-05-01', hour: 9,  tipo: 'MAT' },
-  { date: '2026-05-01', hour: 17, tipo: 'MAT' },
-  { date: '2026-05-01', hour: 18, tipo: 'GAP' },
-  { date: '2026-05-01', hour: 19, tipo: 'MAT' },
-  // Sábado 2 (horario especial: 7:30 y 8:30)
-  { date: '2026-05-02', hour: 7, minute: 30, tipo: 'MAT' },
-  { date: '2026-05-02', hour: 8, minute: 30, tipo: 'MAT' },
+  // Lunes 16
+  { date: '2026-06-16', hour: 7,  tipo: 'MAT' },
+  { date: '2026-06-16', hour: 8,  tipo: 'GAP' },
+  { date: '2026-06-16', hour: 9,  tipo: 'MAT' },
+  { date: '2026-06-16', hour: 17, tipo: 'MAT' },
+  { date: '2026-06-16', hour: 18, tipo: 'GAP' },
+  { date: '2026-06-16', hour: 19, tipo: 'MAT' },
+  // Martes 17
+  { date: '2026-06-17', hour: 7,  tipo: 'MAT' },
+  { date: '2026-06-17', hour: 8,  tipo: 'MAT' },
+  { date: '2026-06-17', hour: 9,  tipo: 'MAT' },
+  { date: '2026-06-17', hour: 17, tipo: 'MAT' },
+  { date: '2026-06-17', hour: 18, tipo: 'MAT' },
+  { date: '2026-06-17', hour: 19, tipo: 'MAT' },
+  // Miércoles 18
+  { date: '2026-06-18', hour: 7,  tipo: 'MAT' },
+  { date: '2026-06-18', hour: 8,  tipo: 'GAP' },
+  { date: '2026-06-18', hour: 9,  tipo: 'MAT' },
+  { date: '2026-06-18', hour: 17, tipo: 'MAT' },
+  { date: '2026-06-18', hour: 18, tipo: 'GAP' },
+  { date: '2026-06-18', hour: 19, tipo: 'MAT' },
+  // Jueves 19
+  { date: '2026-06-19', hour: 7,  tipo: 'MAT' },
+  { date: '2026-06-19', hour: 8,  tipo: 'MAT' },
+  { date: '2026-06-19', hour: 9,  tipo: 'MAT' },
+  { date: '2026-06-19', hour: 17, tipo: 'MAT' },
+  { date: '2026-06-19', hour: 18, tipo: 'MAT' },
+  { date: '2026-06-19', hour: 19, tipo: 'MAT' },
+  // Viernes 20
+  { date: '2026-06-20', hour: 7,  tipo: 'MAT' },
+  { date: '2026-06-20', hour: 8,  tipo: 'GAP' },
+  { date: '2026-06-20', hour: 9,  tipo: 'MAT' },
+  { date: '2026-06-20', hour: 17, tipo: 'MAT' },
+  { date: '2026-06-20', hour: 18, tipo: 'GAP' },
+  { date: '2026-06-20', hour: 19, tipo: 'MAT' },
+  // Sábado 21 (horario especial: 7:30 y 8:30)
+  { date: '2026-06-21', hour: 7, minute: 30, tipo: 'MAT' },
+  { date: '2026-06-21', hour: 8, minute: 30, tipo: 'MAT' },
 ];
 
 // ── Main ───────────────────────────────────────────────────────────────────────
@@ -111,6 +111,9 @@ async function main() {
 
   // ─── Limpiar tablas en orden seguro ──────────────────────────────────────────
   await prisma.attendance.deleteMany();
+  await prisma.corteCaja.deleteMany();
+  await prisma.ingreso.deleteMany();
+  await prisma.gasto.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.reservation.deleteMany();
   await prisma.membership.deleteMany();

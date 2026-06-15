@@ -4,6 +4,8 @@ import { requireRole } from '../middlewares/role.middleware';
 import { prisma } from '../config/database';
 import { ApiSuccess, ApiError } from '../utils/response';
 import { z } from 'zod';
+import { autoCreateIngreso } from '../services/membership.service';
+import type { PaymentMethod } from '@prisma/client';
 
 const router = Router();
 
@@ -81,24 +83,55 @@ router.post(
       const expiresAt = new Date(startDate);
       expiresAt.setDate(expiresAt.getDate() + pkg.validityDays);
 
-      const membresia = await prisma.membership.create({
-        data: {
-          clientId: parseResult.data.clientId,
-          packageId: parseResult.data.packageId,
-          startDate,
-          expiresAt,
-          totalSessions: pkg.sessions,
-          sessionsUsed: 0,
-          sessionsRemaining: pkg.sessions,
-          status: 'ACTIVE',
-          pricePaid: parseResult.data.pricePaid ?? Number(pkg.price),
-          paymentMethod: parseResult.data.paymentMethod ?? null,
-          notes: parseResult.data.notes,
-        },
-        include: {
-          client: { select: { id: true, firstName: true, lastName: true } },
-          package: { select: { id: true, name: true, sessions: true } },
-        },
+      const pricePaid = parseResult.data.pricePaid ?? Number(pkg.price);
+      const paymentMethod = parseResult.data.paymentMethod ?? null;
+
+      const membresia = await prisma.$transaction(async (tx) => {
+        const m = await tx.membership.create({
+          data: {
+            clientId: parseResult.data.clientId,
+            packageId: parseResult.data.packageId,
+            startDate,
+            expiresAt,
+            totalSessions: pkg.sessions,
+            sessionsUsed: 0,
+            sessionsRemaining: pkg.sessions,
+            status: 'ACTIVE',
+            pricePaid,
+            paymentMethod,
+            notes: parseResult.data.notes,
+          },
+          include: {
+            client: { select: { id: true, firstName: true, lastName: true } },
+            package: { select: { id: true, name: true, sessions: true } },
+          },
+        });
+
+        // Venta manual con cobro → registrar Payment + Ingreso contable (cuenta 401).
+        // Sin paymentMethod = membresía de cortesía, no genera ingreso.
+        if (paymentMethod) {
+          await tx.payment.create({
+            data: {
+              membershipId: m.id,
+              amount: pricePaid,
+              method: paymentMethod as PaymentMethod,
+              status: 'PAID',
+              paidAt: startDate,
+            },
+          });
+          await autoCreateIngreso(tx, {
+            monto: pricePaid,
+            concepto: `Membresía ${pkg.name} - ${paymentMethod}`,
+            fecha: startDate,
+            origen: 'MEMBRESIA_MANUAL',
+            referenciaId: m.id,
+            cuentaCodigo: '401',
+            cuentaNombre: 'Ingresos por membresías',
+            creadoPorId: req.user?.id,
+          });
+        }
+
+        return m;
       });
 
       ApiSuccess(res, membresia, 201);

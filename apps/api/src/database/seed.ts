@@ -18,90 +18,57 @@ function addMinutes(d: Date, m: number): Date {
 }
 
 // ── Horario Reformer semana 16–21 Jun 2026 ────────────────────────────────────
-// Fuente: cartel oficial. Flow/Power/Mobility son variantes de la clase Reformer.
-// 19:00 Lunes marcado como cancelado en cartel → isCancelled: true
+// Horario real: L-V 7:00, 17:00, 18:00 · Sábado 7:30. Flow/Power/Mobility = variantes.
 const REFORMER_SCHEDULE: Array<{ date: string; hour: number; minute?: number; tipo: 'FLOW' | 'POWER' | 'MOBILITY'; cancelled?: boolean }> = [
   // Lunes 16
-  { date: '2026-06-16', hour: 7,  tipo: 'MOBILITY' },
-  { date: '2026-06-16', hour: 8,  tipo: 'POWER' },
-  { date: '2026-06-16', hour: 9,  tipo: 'FLOW' },
-  { date: '2026-06-16', hour: 17, tipo: 'FLOW' },
-  { date: '2026-06-16', hour: 18, tipo: 'FLOW' },
-  { date: '2026-06-16', hour: 19, tipo: 'FLOW', cancelled: true },
+  { date: '2026-06-16', hour: 7,  tipo: 'FLOW' },
+  { date: '2026-06-16', hour: 17, tipo: 'POWER' },
+  { date: '2026-06-16', hour: 18, tipo: 'MOBILITY' },
   // Martes 17
   { date: '2026-06-17', hour: 7,  tipo: 'POWER' },
-  { date: '2026-06-17', hour: 8,  tipo: 'FLOW' },
-  { date: '2026-06-17', hour: 9,  tipo: 'MOBILITY' },
-  { date: '2026-06-17', hour: 17, tipo: 'POWER' },
-  { date: '2026-06-17', hour: 18, tipo: 'MOBILITY' },
-  { date: '2026-06-17', hour: 19, tipo: 'MOBILITY' },
+  { date: '2026-06-17', hour: 17, tipo: 'MOBILITY' },
+  { date: '2026-06-17', hour: 18, tipo: 'FLOW' },
   // Miércoles 18
   { date: '2026-06-18', hour: 7,  tipo: 'MOBILITY' },
-  { date: '2026-06-18', hour: 8,  tipo: 'POWER' },
-  { date: '2026-06-18', hour: 9,  tipo: 'POWER' },
-  { date: '2026-06-18', hour: 17, tipo: 'MOBILITY' },
-  { date: '2026-06-18', hour: 18, tipo: 'FLOW' },
-  { date: '2026-06-18', hour: 19, tipo: 'POWER' },
+  { date: '2026-06-18', hour: 17, tipo: 'FLOW' },
+  { date: '2026-06-18', hour: 18, tipo: 'POWER' },
   // Jueves 19
-  { date: '2026-06-19', hour: 7,  tipo: 'POWER' },
-  { date: '2026-06-19', hour: 8,  tipo: 'FLOW' },
-  { date: '2026-06-19', hour: 9,  tipo: 'MOBILITY' },
+  { date: '2026-06-19', hour: 7,  tipo: 'FLOW' },
   { date: '2026-06-19', hour: 17, tipo: 'POWER' },
-  { date: '2026-06-19', hour: 18, tipo: 'POWER' },
-  { date: '2026-06-19', hour: 19, tipo: 'FLOW' },
+  { date: '2026-06-19', hour: 18, tipo: 'MOBILITY' },
   // Viernes 20
-  { date: '2026-06-20', hour: 7,  tipo: 'FLOW' },
-  { date: '2026-06-20', hour: 8,  tipo: 'POWER' },
-  { date: '2026-06-20', hour: 9,  tipo: 'POWER' },
-  { date: '2026-06-20', hour: 17, tipo: 'POWER' },
+  { date: '2026-06-20', hour: 7,  tipo: 'POWER' },
+  { date: '2026-06-20', hour: 17, tipo: 'MOBILITY' },
   { date: '2026-06-20', hour: 18, tipo: 'FLOW' },
-  { date: '2026-06-20', hour: 19, tipo: 'POWER' },
-  // Sábado 21 (horario especial: 7:30 y 8:30)
-  { date: '2026-06-21', hour: 7, minute: 30, tipo: 'MOBILITY' },
-  { date: '2026-06-21', hour: 8, minute: 30, tipo: 'MOBILITY' },
+  // Sábado 21 (horario especial: 7:30)
+  { date: '2026-06-21', hour: 7, minute: 30, tipo: 'FLOW' },
 ];
 
 // ── Horario Mat semana 16–21 Jun 2026 ─────────────────────────────────────────
-// GAP = Glúteos, Abdomen, Piernas — variante de clase Mat
+// Horario real: L-V 7:00, 17:00, 18:00 · Sábado 7:30. GAP = variante de Mat.
 const MAT_SCHEDULE: Array<{ date: string; hour: number; minute?: number; tipo: 'MAT' | 'GAP' }> = [
   // Lunes 16
   { date: '2026-06-16', hour: 7,  tipo: 'MAT' },
-  { date: '2026-06-16', hour: 8,  tipo: 'GAP' },
-  { date: '2026-06-16', hour: 9,  tipo: 'MAT' },
   { date: '2026-06-16', hour: 17, tipo: 'MAT' },
   { date: '2026-06-16', hour: 18, tipo: 'GAP' },
-  { date: '2026-06-16', hour: 19, tipo: 'MAT' },
   // Martes 17
   { date: '2026-06-17', hour: 7,  tipo: 'MAT' },
-  { date: '2026-06-17', hour: 8,  tipo: 'MAT' },
-  { date: '2026-06-17', hour: 9,  tipo: 'MAT' },
-  { date: '2026-06-17', hour: 17, tipo: 'MAT' },
+  { date: '2026-06-17', hour: 17, tipo: 'GAP' },
   { date: '2026-06-17', hour: 18, tipo: 'MAT' },
-  { date: '2026-06-17', hour: 19, tipo: 'MAT' },
   // Miércoles 18
-  { date: '2026-06-18', hour: 7,  tipo: 'MAT' },
-  { date: '2026-06-18', hour: 8,  tipo: 'GAP' },
-  { date: '2026-06-18', hour: 9,  tipo: 'MAT' },
+  { date: '2026-06-18', hour: 7,  tipo: 'GAP' },
   { date: '2026-06-18', hour: 17, tipo: 'MAT' },
-  { date: '2026-06-18', hour: 18, tipo: 'GAP' },
-  { date: '2026-06-18', hour: 19, tipo: 'MAT' },
+  { date: '2026-06-18', hour: 18, tipo: 'MAT' },
   // Jueves 19
   { date: '2026-06-19', hour: 7,  tipo: 'MAT' },
-  { date: '2026-06-19', hour: 8,  tipo: 'MAT' },
-  { date: '2026-06-19', hour: 9,  tipo: 'MAT' },
-  { date: '2026-06-19', hour: 17, tipo: 'MAT' },
+  { date: '2026-06-19', hour: 17, tipo: 'GAP' },
   { date: '2026-06-19', hour: 18, tipo: 'MAT' },
-  { date: '2026-06-19', hour: 19, tipo: 'MAT' },
   // Viernes 20
   { date: '2026-06-20', hour: 7,  tipo: 'MAT' },
-  { date: '2026-06-20', hour: 8,  tipo: 'GAP' },
-  { date: '2026-06-20', hour: 9,  tipo: 'MAT' },
   { date: '2026-06-20', hour: 17, tipo: 'MAT' },
   { date: '2026-06-20', hour: 18, tipo: 'GAP' },
-  { date: '2026-06-20', hour: 19, tipo: 'MAT' },
-  // Sábado 21 (horario especial: 7:30 y 8:30)
+  // Sábado 21 (horario especial: 7:30)
   { date: '2026-06-21', hour: 7, minute: 30, tipo: 'MAT' },
-  { date: '2026-06-21', hour: 8, minute: 30, tipo: 'MAT' },
 ];
 
 // ── Main ───────────────────────────────────────────────────────────────────────
@@ -270,7 +237,7 @@ async function main() {
   });
   console.log('');
 
-  // ─── CLASES — Semana 27 Abr – 2 May 2026 ─────────────────────────────────────
+  // ─── CLASES — Semana 16–21 Jun 2026 ──────────────────────────────────────────
   const instructorId = instructoraUser.instructor!.id;
   let totalClases = 0;
 
@@ -312,7 +279,7 @@ async function main() {
     totalClases++;
   }
 
-  console.log(`✓ ${totalClases} clases creadas para la semana 27 Abr – 2 May 2026`);
+  console.log(`✓ ${totalClases} clases creadas para la semana 16–21 Jun 2026`);
   console.log(`   Reformer: ${REFORMER_SCHEDULE.length} clases (Flow / Power / Mobility)`);
   console.log(`   Mat:      ${MAT_SCHEDULE.length} clases (Mat / GAP)\n`);
 

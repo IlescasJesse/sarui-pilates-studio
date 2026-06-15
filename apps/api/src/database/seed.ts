@@ -7,10 +7,11 @@ const prisma = new PrismaClient();
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-/** Construye un Date en CDMX (UTC-6) para la semana 16–21 Jun 2026 */
+/** Construye un Date en hora local de México (UTC-6, sin DST) para la semana 16–21 Jun 2026 */
 function dt(isoDate: string, hour: number, minute = 0): Date {
-  // isoDate = 'YYYY-MM-DD', interpretado en UTC para consistencia en DB
-  return new Date(`${isoDate}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00.000Z`);
+  // hour/minute = hora local del estudio (America/Mexico_City). Offset -06:00 → UTC en DB.
+  // Ej: 07:00 local → 13:00 UTC. El front (toLocaleTimeString) lo regresa a 07:00 local.
+  return new Date(`${isoDate}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00.000-06:00`);
 }
 
 function addMinutes(d: Date, m: number): Date {

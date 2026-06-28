@@ -20,6 +20,7 @@ import inventarioRoutes from './inventario.routes';
 import finanzasRoutes from './finanzas.routes';
 import personalRoutes from './personal.routes';
 import asistenciaRoutes from './asistencia.routes';
+import nominaRoutes from './nomina.routes';
 
 const router = Router();
 
@@ -46,6 +47,7 @@ router.use('/admin', adminRoutes);
 router.use('/inventario', inventarioRoutes);
 router.use('/finanzas', finanzasRoutes);
 router.use('/personal/asistencia', asistenciaRoutes);
+router.use('/personal/nomina', nominaRoutes);
 router.use('/personal', personalRoutes);
 
 export default router;

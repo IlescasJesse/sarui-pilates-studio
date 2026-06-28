@@ -18,6 +18,7 @@ import contabilidadRoutes from './contabilidad.routes';
 import adminRoutes from './admin.routes';
 import inventarioRoutes from './inventario.routes';
 import finanzasRoutes from './finanzas.routes';
+import personalRoutes from './personal.routes';
 
 const router = Router();
 
@@ -43,5 +44,6 @@ router.use('/contabilidad', contabilidadRoutes);
 router.use('/admin', adminRoutes);
 router.use('/inventario', inventarioRoutes);
 router.use('/finanzas', finanzasRoutes);
+router.use('/personal', personalRoutes);
 
 export default router;

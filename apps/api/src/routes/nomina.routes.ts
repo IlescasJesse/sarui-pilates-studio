@@ -9,6 +9,26 @@ import { autoCreateGasto, calcularDetallesPeriodo } from '../services/nomina.ser
 const router = Router();
 router.use(authMiddleware);
 
+function mapPeriodo(periodo: any) {
+  if (!periodo) return periodo;
+  return {
+    ...periodo,
+    detalles: (periodo.detalles ?? []).map((d: any) => {
+      const sp = d.user?.staffProfile;
+      return {
+        ...d,
+        staff: sp ? {
+          id: sp.id,
+          nombre: sp.firstName,
+          apellido: sp.lastName,
+          puesto: sp.puesto ?? null,
+        } : null,
+        user: undefined,
+      };
+    }),
+  };
+}
+
 const periodoSchema = z.object({
   fechaInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   fechaFin: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -41,7 +61,7 @@ router.get('/periodos', requireRole('ADMIN'), async (req: Request, res: Response
       },
       orderBy: { creadoEn: 'desc' },
     });
-    ApiSuccess(res, periodos);
+    ApiSuccess(res, periodos.map(mapPeriodo));
   } catch (error) { next(error); }
 });
 
@@ -89,7 +109,7 @@ router.post('/periodos', requireRole('ADMIN'), async (req: Request, res: Respons
       });
     });
 
-    ApiSuccess(res, periodo, 201);
+    ApiSuccess(res, mapPeriodo(periodo), 201);
   } catch (error) { next(error); }
 });
 
@@ -123,7 +143,7 @@ router.post('/periodos/:id/recalcular', requireRole('ADMIN'), async (req: Reques
       });
     });
 
-    ApiSuccess(res, updated);
+    ApiSuccess(res, mapPeriodo(updated));
   } catch (error) { next(error); }
 });
 
@@ -228,7 +248,7 @@ router.post('/periodos/:id/aprobar', requireRole('ADMIN'), async (req: Request, 
       });
     });
 
-    ApiSuccess(res, result);
+    ApiSuccess(res, mapPeriodo(result));
   } catch (error) { next(error); }
 });
 

@@ -613,6 +613,7 @@ model Gasto {
 
   cuentaContable CuentaContable @relation(fields: [cuentaContableId], references: [id])
   creadoPor      User           @relation(fields: [creadoPorId], references: [id])
+  nominaDetalle  NominaDetalle?
 
   @@index([cuentaContableId])
   @@index([fecha])
@@ -802,6 +803,7 @@ model NominaDetalle {
 
   periodo PeriodoNomina @relation(fields: [periodoId], references: [id])
   user    User          @relation(fields: [userId], references: [id])
+  gasto   Gasto?        @relation(fields: [gastoId], references: [id])
 
   @@unique([periodoId, userId])
   @@map("nomina_detalles")

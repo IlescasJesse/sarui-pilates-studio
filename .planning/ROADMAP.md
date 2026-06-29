@@ -2,7 +2,7 @@
 **Goal**: Gestión de personal, puestos y pago de nómina semanal integrado con contabilidad
 **Status**: planned
 **Priority**: high
-**Plans:** 7 plans
+**Plans:** 7/7 plans complete
 
 **Success Criteria:**
 1. Modelo `Puesto`: id, nombre, salarioSemanal — CRUD desde admin
@@ -16,13 +16,13 @@
 9. Vista admin: panel de nómina — resumen, ajustes manuales, botón aprobar, historial
 
 **Plans:**
-- [ ] 23-01-PLAN.md — [BLOCKING] Schema Prisma (4 modelos + enum) + migración DB
-- [ ] 23-02-PLAN.md — Backend: CRUD Puestos + Personal (StaffProfile)
-- [ ] 23-03-PLAN.md — Backend: Asistencia (autoregistro server-date + admin retroactivo)
-- [ ] 23-04-PLAN.md — Backend: Nómina service + aprobación + Gasto cuenta 602
-- [ ] 23-05-PLAN.md — Frontend: hook + page shell + Tab Personal + Sidebar
-- [ ] 23-06-PLAN.md — Frontend: Tab Asistencia (checklist semanal autoguardado)
-- [ ] 23-07-PLAN.md — Frontend: Tab Nómina (panel períodos + ajuste inline + aprobar/pagar)
+- [x] 23-01-PLAN.md — [BLOCKING] Schema Prisma (4 modelos + enum) + migración DB
+- [x] 23-02-PLAN.md — Backend: CRUD Puestos + Personal (StaffProfile)
+- [x] 23-03-PLAN.md — Backend: Asistencia (autoregistro server-date + admin retroactivo)
+- [x] 23-04-PLAN.md — Backend: Nómina service + aprobación + Gasto cuenta 602
+- [x] 23-05-PLAN.md — Frontend: hook + page shell + Tab Personal + Sidebar
+- [x] 23-06-PLAN.md — Frontend: Tab Asistencia (checklist semanal autoguardado)
+- [x] 23-07-PLAN.md — Frontend: Tab Nómina (panel períodos + ajuste inline + aprobar/pagar)
 
 **Notes:**
 - Salario fijo semanal sin bonos en v1

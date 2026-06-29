@@ -37,7 +37,7 @@ export function TabAsistencia() {
   const diasSemana = eachDayOfInterval({ start: semanaInicio, end: semanaFin });
   const semanaInicioStr = format(semanaInicio, "yyyy-MM-dd");
 
-  const { data: asistencias, isLoading } = useAsistenciaSemana(semanaInicioStr);
+  const { data: asistencias, isLoading } = useAsistenciaSemana(semanaInicioStr, isAdmin);
   const marcar = useMarcarAsistenciaAdmin();
 
   // Track which cells are pending: key = `${staffId}_${fechaISO}`

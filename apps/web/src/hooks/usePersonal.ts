@@ -75,7 +75,7 @@ export function useStaff() {
   });
 }
 
-export function useAsistenciaSemana(inicio: string) {
+export function useAsistenciaSemana(inicio: string, enabled = true) {
   return useQuery<AsistenciaSemana[]>({
     queryKey: ['personal-asistencia', inicio],
     queryFn: async () => {
@@ -84,7 +84,7 @@ export function useAsistenciaSemana(inicio: string) {
       });
       return res.data.data;
     },
-    enabled: !!inicio,
+    enabled: !!inicio && enabled,
   });
 }
 

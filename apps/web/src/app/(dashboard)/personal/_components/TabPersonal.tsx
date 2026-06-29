@@ -40,6 +40,9 @@ function fmt(n: number) {
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 interface StaffFormData {
+  email: string;
+  password: string;
+  role: "ADMIN" | "INSTRUCTOR" | "RECEPCIONISTA";
   nombre: string;
   apellido: string;
   telefono: string;
@@ -54,6 +57,9 @@ interface PuestoFormData {
 }
 
 const defaultStaffForm: StaffFormData = {
+  email: "",
+  password: "",
+  role: "RECEPCIONISTA",
   nombre: "",
   apellido: "",
   telefono: "",
@@ -182,6 +188,9 @@ function StaffDialog({ open, onClose, staff, puestos: initialPuestos }: StaffDia
   const [form, setForm] = useState<StaffFormData>(
     staff
       ? {
+          email: staff.user?.email ?? "",
+          password: "",
+          role: (staff.user?.role ?? "RECEPCIONISTA") as StaffFormData["role"],
           nombre: staff.nombre,
           apellido: staff.apellido,
           telefono: staff.telefono ?? "",
@@ -204,6 +213,10 @@ function StaffDialog({ open, onClose, staff, puestos: initialPuestos }: StaffDia
 
   const validate = () => {
     const e: Partial<Record<keyof StaffFormData, string>> = {};
+    if (!isEditing) {
+      if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Email válido requerido";
+      if (form.password.length < 6) e.password = "Mínimo 6 caracteres";
+    }
     if (!form.nombre.trim()) e.nombre = "Requerido";
     if (!form.apellido.trim()) e.apellido = "Requerido";
     if (!form.fechaIngreso) e.fechaIngreso = "Requerido";
@@ -240,6 +253,11 @@ function StaffDialog({ open, onClose, staff, puestos: initialPuestos }: StaffDia
   const handleSubmit = async () => {
     if (!validate()) return;
     const payload = {
+      ...(isEditing ? {} : {
+        email: form.email.trim(),
+        password: form.password,
+        role: form.role,
+      }),
       nombre: form.nombre.trim(),
       apellido: form.apellido.trim(),
       telefono: form.telefono.trim() || undefined,
@@ -252,7 +270,7 @@ function StaffDialog({ open, onClose, staff, puestos: initialPuestos }: StaffDia
         await editarStaff.mutateAsync({ id: staff.id, data: payload });
         toast.success("Empleado actualizado");
       } else {
-        await crearStaff.mutateAsync(payload);
+        await crearStaff.mutateAsync(payload as Parameters<typeof crearStaff.mutateAsync>[0]);
         toast.success("Empleado agregado");
       }
       onClose();
@@ -271,6 +289,46 @@ function StaffDialog({ open, onClose, staff, puestos: initialPuestos }: StaffDia
         </DialogHeader>
 
         <div className="space-y-3 py-2">
+          {!isEditing && (
+            <>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Email (acceso al sistema)</label>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="empleado@sarui.mx"
+                />
+                {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Contraseña</label>
+                  <Input
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                    placeholder="Mínimo 6 caracteres"
+                  />
+                  {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Rol</label>
+                  <select
+                    value={form.role}
+                    onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as StaffFormData["role"] }))}
+                    className="w-full px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  >
+                    <option value="RECEPCIONISTA">Recepcionista</option>
+                    <option value="INSTRUCTOR">Instructor</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-sm font-medium">Nombre</label>

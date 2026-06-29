@@ -4,6 +4,7 @@ import { authMiddleware } from '../middlewares/auth.middleware';
 import { requireRole } from '../middlewares/role.middleware';
 import { prisma } from '../config/database';
 import { ApiSuccess, ApiError } from '../utils/response';
+import { hashPassword } from '../utils/bcrypt';
 
 const router = Router();
 router.use(authMiddleware);
@@ -17,7 +18,9 @@ const puestoSchema = z.object({
 });
 
 const staffSchema = z.object({
-  userId: z.string().min(1),
+  email: z.string().trim().email(),
+  password: z.string().min(6),
+  role: z.enum(['ADMIN', 'INSTRUCTOR', 'RECEPCIONISTA']),
   nombre: z.string().trim().min(1),
   apellido: z.string().trim().min(1),
   phone: z.string().optional(),
@@ -130,38 +133,29 @@ router.post('/staff', requireRole('ADMIN'), async (req: Request, res: Response, 
       ApiError(res, 'VALIDATION_ERROR', 'Datos inválidos', 400);
       return;
     }
-    const { userId, nombre, apellido, phone, fechaIngreso, activo, nuevoPuesto } = parse.data;
+    const { email, password, role, nombre, apellido, phone, fechaIngreso, activo, nuevoPuesto } = parse.data;
     let { puestoId } = parse.data;
 
-    let staff;
-    if (nuevoPuesto && !puestoId) {
-      const result = await prisma.$transaction(async (tx) => {
-        const puesto = await tx.puesto.create({ data: nuevoPuesto });
-        return tx.staffProfile.create({
-          data: {
-            userId,
-            firstName: nombre,
-            lastName: apellido,
-            phone,
-            puestoId: puesto.id,
-            fechaIngreso: fechaIngreso ? new Date(fechaIngreso) : undefined,
-            activo: activo ?? true,
-          },
-          include: {
-            user: { select: { id: true, email: true, role: true } },
-            puesto: true,
-          },
-        });
+    const hash = await hashPassword(password);
+
+    const staff = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: { email, password: hash, role },
       });
-      staff = result;
-    } else {
-      staff = await prisma.staffProfile.create({
+
+      let resolvedPuestoId = puestoId;
+      if (nuevoPuesto && !puestoId) {
+        const puesto = await tx.puesto.create({ data: nuevoPuesto });
+        resolvedPuestoId = puesto.id;
+      }
+
+      return tx.staffProfile.create({
         data: {
-          userId,
+          userId: user.id,
           firstName: nombre,
           lastName: apellido,
           phone,
-          puestoId: puestoId ?? undefined,
+          puestoId: resolvedPuestoId ?? undefined,
           fechaIngreso: fechaIngreso ? new Date(fechaIngreso) : undefined,
           activo: activo ?? true,
         },
@@ -170,7 +164,7 @@ router.post('/staff', requireRole('ADMIN'), async (req: Request, res: Response, 
           puesto: true,
         },
       });
-    }
+    });
 
     ApiSuccess(res, mapStaff(staff), 201);
   } catch (error: any) {

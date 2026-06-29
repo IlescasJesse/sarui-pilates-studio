@@ -19,6 +19,7 @@ export interface StaffProfile {
   fechaIngreso: string;
   activo: boolean;
   userId?: string;
+  user?: { id: string; email: string; role: string };
 }
 
 export interface AsistenciaDia {
@@ -132,6 +133,9 @@ export function useCrearStaff() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: {
+      email: string;
+      password: string;
+      role: 'ADMIN' | 'INSTRUCTOR' | 'RECEPCIONISTA';
       nombre: string;
       apellido: string;
       telefono?: string;

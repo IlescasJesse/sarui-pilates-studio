@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Loader2, FileText } from "lucide-react";
+import { Plus, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -410,9 +410,6 @@ function PeriodoCard({ periodo, onAprobar, onPagar }: PeriodoCardProps) {
                   size="sm"
                 >
                   Aprobar nómina
-                </Button>
-                <Button variant="ghost" size="sm" className="text-muted-foreground">
-                  <Trash2 className="w-4 h-4" />
                 </Button>
               </>
             )}

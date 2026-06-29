@@ -18,8 +18,8 @@ const puestoSchema = z.object({
 
 const staffSchema = z.object({
   userId: z.string().min(1),
-  firstName: z.string().trim().min(1),
-  lastName: z.string().trim().min(1),
+  nombre: z.string().trim().min(1),
+  apellido: z.string().trim().min(1),
   phone: z.string().optional(),
   puestoId: z.string().optional(),
   fechaIngreso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -29,6 +29,13 @@ const staffSchema = z.object({
     salarioSemanal: z.coerce.number().positive(),
   }).optional(),
 });
+
+// ─── Response mapper ─────────────────────────────────────────────────────────
+
+function mapStaff<T extends { firstName: string; lastName: string }>(s: T) {
+  const { firstName, lastName, ...rest } = s as any;
+  return { ...rest, nombre: firstName, apellido: lastName };
+}
 
 // ─── Puestos ─────────────────────────────────────────────────────────────────
 
@@ -111,7 +118,7 @@ router.get('/staff', requireRole('ADMIN'), async (req: Request, res: Response, n
       },
       orderBy: { firstName: 'asc' },
     });
-    ApiSuccess(res, items);
+    ApiSuccess(res, items.map(mapStaff));
   } catch (error) { next(error); }
 });
 
@@ -123,7 +130,7 @@ router.post('/staff', requireRole('ADMIN'), async (req: Request, res: Response, 
       ApiError(res, 'VALIDATION_ERROR', 'Datos inválidos', 400);
       return;
     }
-    const { userId, firstName, lastName, phone, fechaIngreso, activo, nuevoPuesto } = parse.data;
+    const { userId, nombre, apellido, phone, fechaIngreso, activo, nuevoPuesto } = parse.data;
     let { puestoId } = parse.data;
 
     let staff;
@@ -133,8 +140,8 @@ router.post('/staff', requireRole('ADMIN'), async (req: Request, res: Response, 
         return tx.staffProfile.create({
           data: {
             userId,
-            firstName,
-            lastName,
+            firstName: nombre,
+            lastName: apellido,
             phone,
             puestoId: puesto.id,
             fechaIngreso: fechaIngreso ? new Date(fechaIngreso) : undefined,
@@ -151,8 +158,8 @@ router.post('/staff', requireRole('ADMIN'), async (req: Request, res: Response, 
       staff = await prisma.staffProfile.create({
         data: {
           userId,
-          firstName,
-          lastName,
+          firstName: nombre,
+          lastName: apellido,
           phone,
           puestoId: puestoId ?? undefined,
           fechaIngreso: fechaIngreso ? new Date(fechaIngreso) : undefined,
@@ -165,7 +172,7 @@ router.post('/staff', requireRole('ADMIN'), async (req: Request, res: Response, 
       });
     }
 
-    ApiSuccess(res, staff, 201);
+    ApiSuccess(res, mapStaff(staff), 201);
   } catch (error: any) {
     if (error?.code === 'P2002') {
       ApiError(res, 'DUPLICATE', 'Ese usuario ya tiene perfil de personal', 409);
@@ -184,12 +191,12 @@ router.patch('/staff/:id', requireRole('ADMIN'), async (req: Request, res: Respo
       ApiError(res, 'VALIDATION_ERROR', 'Datos inválidos', 400);
       return;
     }
-    const { firstName, lastName, phone, puestoId, fechaIngreso, activo } = parse.data;
+    const { nombre, apellido, phone, puestoId, fechaIngreso, activo } = parse.data;
     const updated = await prisma.staffProfile.update({
       where: { id },
       data: {
-        ...(firstName !== undefined && { firstName }),
-        ...(lastName !== undefined && { lastName }),
+        ...(nombre !== undefined && { firstName: nombre }),
+        ...(apellido !== undefined && { lastName: apellido }),
         ...(phone !== undefined && { phone }),
         ...(puestoId !== undefined && { puestoId }),
         ...(fechaIngreso !== undefined && { fechaIngreso: new Date(fechaIngreso) }),
@@ -200,7 +207,7 @@ router.patch('/staff/:id', requireRole('ADMIN'), async (req: Request, res: Respo
         puesto: true,
       },
     });
-    ApiSuccess(res, updated);
+    ApiSuccess(res, mapStaff(updated));
   } catch (error: any) {
     if (error?.code === 'P2025') {
       ApiError(res, 'NOT_FOUND', 'Perfil de personal no encontrado', 404);

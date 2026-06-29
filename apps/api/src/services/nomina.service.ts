@@ -55,6 +55,9 @@ export async function calcularDetallesPeriodo(
   inicio: Date,
   fin: Date
 ): Promise<void> {
+  // Delete stale rows so deactivated staff don't remain in the period
+  await tx.nominaDetalle.deleteMany({ where: { periodoId } });
+
   const staffList = await tx.staffProfile.findMany({
     where: { activo: true, puestoId: { not: null } },
     include: { puesto: true },
@@ -74,23 +77,14 @@ export async function calcularDetallesPeriodo(
     const bruto = Number(staff.puesto.salarioSemanal);
     const neto = Math.round((bruto / 7) * dias * 100) / 100;
 
-    await tx.nominaDetalle.upsert({
-      where: {
-        periodoId_userId: { periodoId, userId: staff.userId },
-      },
-      create: {
+    await tx.nominaDetalle.create({
+      data: {
         periodoId,
         userId: staff.userId,
         diasTrabajados: dias,
         salarioBruto: bruto,
         deducciones: 0,
         netoAPagar: neto,
-      },
-      update: {
-        diasTrabajados: dias,
-        salarioBruto: bruto,
-        netoAPagar: neto,
-        // deducciones intentionally NOT updated — preserves manual adjustments
       },
     });
   }

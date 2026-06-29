@@ -16,7 +16,7 @@ const autoregistroSchema = z.object({
 });
 
 const adminMarcarSchema = z.object({
-  userId: z.string().min(1),
+  staffId: z.string().min(1),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   presente: z.boolean(),
   observaciones: z.string().optional(),
@@ -161,10 +161,17 @@ router.patch(
         ApiError(res, 'VALIDATION_ERROR', 'Datos inválidos', 400);
         return;
       }
-      const { userId, fecha: fechaStr, presente, observaciones } = parse.data;
+      const { staffId, fecha: fechaStr, presente, observaciones } = parse.data;
 
-      const fecha = new Date(fechaStr);
-      fecha.setHours(0, 0, 0, 0);
+      const staff = await prisma.staffProfile.findUnique({ where: { id: staffId } });
+      if (!staff) {
+        ApiError(res, 'NOT_FOUND', 'Perfil de personal no encontrado', 404);
+        return;
+      }
+      const userId = staff.userId;
+
+      const [y, m, d] = fechaStr.split('-').map(Number);
+      const fecha = new Date(Date.UTC(y, m - 1, d));
 
       const registro = await prisma.asistenciaPersonal.upsert({
         where: {

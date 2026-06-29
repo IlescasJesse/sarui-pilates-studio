@@ -78,12 +78,9 @@ router.get(
         return;
       }
 
-      const fechaInicio = new Date(inicio);
-      fechaInicio.setHours(0, 0, 0, 0);
-
-      const fechaFin = new Date(fechaInicio);
-      fechaFin.setDate(fechaFin.getDate() + 6);
-      fechaFin.setHours(23, 59, 59, 999);
+      const [iy, im, id2] = inicio.split('-').map(Number);
+      const fechaInicio = new Date(Date.UTC(iy, im - 1, id2));
+      const fechaFin = new Date(Date.UTC(iy, im - 1, id2 + 6, 23, 59, 59, 999));
 
       const items = await prisma.asistenciaPersonal.findMany({
         where: {
@@ -117,12 +114,9 @@ router.get(
         return;
       }
 
-      const fechaInicio = new Date(inicio);
-      fechaInicio.setHours(0, 0, 0, 0);
-
-      const fechaFin = new Date(fechaInicio);
-      fechaFin.setDate(fechaFin.getDate() + 6);
-      fechaFin.setHours(23, 59, 59, 999);
+      const [ay, am, ad] = inicio.split('-').map(Number);
+      const fechaInicio = new Date(Date.UTC(ay, am - 1, ad));
+      const fechaFin = new Date(Date.UTC(ay, am - 1, ad + 6, 23, 59, 59, 999));
 
       const [staffList, asistencias] = await Promise.all([
         prisma.staffProfile.findMany({

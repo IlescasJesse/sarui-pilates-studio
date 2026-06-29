@@ -53,8 +53,10 @@ router.post('/periodos', requireRole('ADMIN'), async (req: Request, res: Respons
       return ApiError(res, 'VALIDATION_ERROR', 'Datos inválidos', 400);
     }
     const { fechaInicio, fechaFin } = parsed.data;
-    const inicio = new Date(fechaInicio);
-    const fin = new Date(fechaFin);
+    const [iy, im, id] = fechaInicio.split('-').map(Number);
+    const inicio = new Date(Date.UTC(iy, im - 1, id));
+    const [fy, fm, fd] = fechaFin.split('-').map(Number);
+    const fin = new Date(Date.UTC(fy, fm - 1, fd));
 
     if (fin < inicio) {
       return ApiError(res, 'INVALID_DATES', 'fechaFin debe ser mayor o igual a fechaInicio', 400);

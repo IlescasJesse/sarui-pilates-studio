@@ -262,7 +262,7 @@ function StaffDialog({ open, onClose, staff, puestos: initialPuestos }: StaffDia
       apellido: form.apellido.trim(),
       telefono: form.telefono.trim() || undefined,
       puestoId: form.puestoId || undefined,
-      fechaIngreso: new Date(form.fechaIngreso).toISOString(),
+      fechaIngreso: form.fechaIngreso,
       activo: form.activo,
     };
     try {

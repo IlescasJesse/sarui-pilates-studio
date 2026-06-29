@@ -124,7 +124,7 @@ router.get(
       fechaFin.setDate(fechaFin.getDate() + 6);
       fechaFin.setHours(23, 59, 59, 999);
 
-      const [staff, asistencias] = await Promise.all([
+      const [staffList, asistencias] = await Promise.all([
         prisma.staffProfile.findMany({
           where: { activo: true },
           include: {
@@ -143,7 +143,22 @@ router.get(
         }),
       ]);
 
-      ApiSuccess(res, { staff, asistencias });
+      // Group into AsistenciaSemana[] structure expected by the frontend
+      const result = staffList.map((s) => {
+        const { firstName, lastName, ...rest } = s as any;
+        return {
+          staff: { ...rest, nombre: firstName, apellido: lastName },
+          dias: asistencias
+            .filter((a) => a.userId === s.userId)
+            .map((a) => ({
+              fecha: a.fecha.toISOString(),
+              presente: a.presente,
+              staffId: s.id,
+            })),
+        };
+      });
+
+      ApiSuccess(res, result);
     } catch (error) {
       next(error);
     }

@@ -102,4 +102,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-06 after initialization*
+*Last updated: 2026-06-29 — Phase 23 complete: módulo Personal/Nómina implementado (schema, API, frontend)*

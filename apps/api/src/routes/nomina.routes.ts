@@ -15,9 +15,12 @@ const periodoSchema = z.object({
 });
 
 const ajusteSchema = z.object({
-  deducciones: z.coerce.number().min(0),
-  netoAPagar: z.coerce.number().min(0),
-});
+  deducciones: z.coerce.number().min(0).optional(),
+  netoAPagar: z.coerce.number().min(0).optional(),
+}).refine(
+  (data) => data.deducciones !== undefined || data.netoAPagar !== undefined,
+  { message: 'Al menos un campo es requerido' }
+);
 
 // GET /periodos — list all periods with details
 router.get('/periodos', requireRole('ADMIN'), async (req: Request, res: Response, next: NextFunction) => {
@@ -140,13 +143,16 @@ router.patch('/detalles/:id', requireRole('ADMIN'), async (req: Request, res: Re
     if (detalle.periodo.estado !== 'BORRADOR') {
       return ApiError(res, 'INVALID_STATUS', 'Solo se pueden ajustar detalles de períodos en BORRADOR', 409);
     }
-    if (netoAPagar < 0) {
+    if (netoAPagar !== undefined && netoAPagar < 0) {
       return ApiError(res, 'INVALID_VALUE', 'netoAPagar no puede ser negativo', 400);
     }
 
     const updated = await prisma.nominaDetalle.update({
       where: { id },
-      data: { deducciones, netoAPagar },
+      data: {
+        ...(deducciones !== undefined && { deducciones }),
+        ...(netoAPagar !== undefined && { netoAPagar }),
+      },
     });
     ApiSuccess(res, updated);
   } catch (error) { next(error); }

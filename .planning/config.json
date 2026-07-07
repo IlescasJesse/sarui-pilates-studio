@@ -44,7 +44,8 @@
     "security_enforcement": true,
     "security_asvs_level": 1,
     "security_block_on": "high",
-    "post_planning_gaps": true
+    "post_planning_gaps": true,
+    "_auto_chain_active": false
   },
   "features": {
     "thinking_partner": false,

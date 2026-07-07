@@ -10,7 +10,7 @@
       "Bash(npx claude-flow*)",
       "Bash(node .claude/*)",
       "Bash(node .opencode/*)",
-      "mcp__claude-flow__:*"
+      "mcp__claude-flow__*"
     ],
     "deny": [
       "Read(./.env)",

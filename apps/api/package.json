@@ -11,7 +11,8 @@
     "migrate:deploy": "prisma migrate deploy",
     "generate": "prisma generate",
     "seed": "tsx src/database/seed.ts",
-    "seed:cuentas": "tsx src/database/seed-cuentas.ts"
+    "seed:cuentas": "tsx src/database/seed-cuentas.ts",
+    "seed:classes": "tsx src/database/seed-classes.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.7.0",

@@ -22,66 +22,66 @@ function addMinutes(d: Date, m: number): Date {
 // Horario real: L-V 7:00, 8:00, 17:00, 18:00 · Sábado 7:30, 8:30. Flow/Power/Mobility = variantes.
 const REFORMER_SCHEDULE: Array<{ date: string; hour: number; minute?: number; tipo: 'FLOW' | 'POWER' | 'MOBILITY'; cancelled?: boolean }> = [
   // Lunes 16
-  { date: '2026-06-16', hour: 7,  tipo: 'FLOW' },
-  { date: '2026-06-16', hour: 8,  tipo: 'POWER' },
-  { date: '2026-06-16', hour: 17, tipo: 'POWER' },
-  { date: '2026-06-16', hour: 18, tipo: 'MOBILITY' },
+  { date: '2026-06-15', hour: 7,  tipo: 'FLOW' },
+  { date: '2026-06-15', hour: 8,  tipo: 'POWER' },
+  { date: '2026-06-15', hour: 17, tipo: 'POWER' },
+  { date: '2026-06-15', hour: 18, tipo: 'MOBILITY' },
   // Martes 17
-  { date: '2026-06-17', hour: 7,  tipo: 'POWER' },
-  { date: '2026-06-17', hour: 8,  tipo: 'MOBILITY' },
-  { date: '2026-06-17', hour: 17, tipo: 'MOBILITY' },
-  { date: '2026-06-17', hour: 18, tipo: 'FLOW' },
+  { date: '2026-06-16', hour: 7,  tipo: 'POWER' },
+  { date: '2026-06-16', hour: 8,  tipo: 'MOBILITY' },
+  { date: '2026-06-16', hour: 17, tipo: 'MOBILITY' },
+  { date: '2026-06-16', hour: 18, tipo: 'FLOW' },
   // Miércoles 18
-  { date: '2026-06-18', hour: 7,  tipo: 'MOBILITY' },
-  { date: '2026-06-18', hour: 8,  tipo: 'FLOW' },
-  { date: '2026-06-18', hour: 17, tipo: 'FLOW' },
-  { date: '2026-06-18', hour: 18, tipo: 'POWER' },
+  { date: '2026-06-17', hour: 7,  tipo: 'MOBILITY' },
+  { date: '2026-06-17', hour: 8,  tipo: 'FLOW' },
+  { date: '2026-06-17', hour: 17, tipo: 'FLOW' },
+  { date: '2026-06-17', hour: 18, tipo: 'POWER' },
   // Jueves 19
-  { date: '2026-06-19', hour: 7,  tipo: 'FLOW' },
-  { date: '2026-06-19', hour: 8,  tipo: 'POWER' },
-  { date: '2026-06-19', hour: 17, tipo: 'POWER' },
-  { date: '2026-06-19', hour: 18, tipo: 'MOBILITY' },
+  { date: '2026-06-18', hour: 7,  tipo: 'FLOW' },
+  { date: '2026-06-18', hour: 8,  tipo: 'POWER' },
+  { date: '2026-06-18', hour: 17, tipo: 'POWER' },
+  { date: '2026-06-18', hour: 18, tipo: 'MOBILITY' },
   // Viernes 20
-  { date: '2026-06-20', hour: 7,  tipo: 'POWER' },
-  { date: '2026-06-20', hour: 8,  tipo: 'MOBILITY' },
-  { date: '2026-06-20', hour: 17, tipo: 'MOBILITY' },
-  { date: '2026-06-20', hour: 18, tipo: 'FLOW' },
+  { date: '2026-06-19', hour: 7,  tipo: 'POWER' },
+  { date: '2026-06-19', hour: 8,  tipo: 'MOBILITY' },
+  { date: '2026-06-19', hour: 17, tipo: 'MOBILITY' },
+  { date: '2026-06-19', hour: 18, tipo: 'FLOW' },
   // Sábado 21 (horario especial: 7:30, 8:30)
-  { date: '2026-06-21', hour: 7, minute: 30, tipo: 'FLOW' },
-  { date: '2026-06-21', hour: 8, minute: 30, tipo: 'POWER' },
+  { date: '2026-06-20', hour: 7, minute: 30, tipo: 'FLOW' },
+  { date: '2026-06-20', hour: 8, minute: 30, tipo: 'POWER' },
 ];
 
 // ── Horario Mat semana 16–21 Jun 2026 ─────────────────────────────────────────
 // Horario real: L-V 7:00, 8:00, 17:00, 18:00 · Sábado 7:30, 8:30. GAP = variante de Mat.
 const MAT_SCHEDULE: Array<{ date: string; hour: number; minute?: number; tipo: 'MAT' | 'GAP' }> = [
   // Lunes 16
-  { date: '2026-06-16', hour: 7,  tipo: 'MAT' },
-  { date: '2026-06-16', hour: 8,  tipo: 'GAP' },
-  { date: '2026-06-16', hour: 17, tipo: 'MAT' },
-  { date: '2026-06-16', hour: 18, tipo: 'GAP' },
+  { date: '2026-06-15', hour: 7,  tipo: 'MAT' },
+  { date: '2026-06-15', hour: 8,  tipo: 'GAP' },
+  { date: '2026-06-15', hour: 17, tipo: 'MAT' },
+  { date: '2026-06-15', hour: 18, tipo: 'GAP' },
   // Martes 17
-  { date: '2026-06-17', hour: 7,  tipo: 'MAT' },
-  { date: '2026-06-17', hour: 8,  tipo: 'MAT' },
-  { date: '2026-06-17', hour: 17, tipo: 'GAP' },
-  { date: '2026-06-17', hour: 18, tipo: 'MAT' },
+  { date: '2026-06-16', hour: 7,  tipo: 'MAT' },
+  { date: '2026-06-16', hour: 8,  tipo: 'MAT' },
+  { date: '2026-06-16', hour: 17, tipo: 'GAP' },
+  { date: '2026-06-16', hour: 18, tipo: 'MAT' },
   // Miércoles 18
-  { date: '2026-06-18', hour: 7,  tipo: 'GAP' },
-  { date: '2026-06-18', hour: 8,  tipo: 'MAT' },
-  { date: '2026-06-18', hour: 17, tipo: 'MAT' },
-  { date: '2026-06-18', hour: 18, tipo: 'MAT' },
+  { date: '2026-06-17', hour: 7,  tipo: 'GAP' },
+  { date: '2026-06-17', hour: 8,  tipo: 'MAT' },
+  { date: '2026-06-17', hour: 17, tipo: 'MAT' },
+  { date: '2026-06-17', hour: 18, tipo: 'MAT' },
   // Jueves 19
-  { date: '2026-06-19', hour: 7,  tipo: 'MAT' },
-  { date: '2026-06-19', hour: 8,  tipo: 'GAP' },
-  { date: '2026-06-19', hour: 17, tipo: 'GAP' },
-  { date: '2026-06-19', hour: 18, tipo: 'MAT' },
+  { date: '2026-06-18', hour: 7,  tipo: 'MAT' },
+  { date: '2026-06-18', hour: 8,  tipo: 'GAP' },
+  { date: '2026-06-18', hour: 17, tipo: 'GAP' },
+  { date: '2026-06-18', hour: 18, tipo: 'MAT' },
   // Viernes 20
-  { date: '2026-06-20', hour: 7,  tipo: 'MAT' },
-  { date: '2026-06-20', hour: 8,  tipo: 'MAT' },
-  { date: '2026-06-20', hour: 17, tipo: 'MAT' },
-  { date: '2026-06-20', hour: 18, tipo: 'GAP' },
+  { date: '2026-06-19', hour: 7,  tipo: 'MAT' },
+  { date: '2026-06-19', hour: 8,  tipo: 'MAT' },
+  { date: '2026-06-19', hour: 17, tipo: 'MAT' },
+  { date: '2026-06-19', hour: 18, tipo: 'GAP' },
   // Sábado 21 (horario especial: 7:30, 8:30)
-  { date: '2026-06-21', hour: 7, minute: 30, tipo: 'MAT' },
-  { date: '2026-06-21', hour: 8, minute: 30, tipo: 'MAT' },
+  { date: '2026-06-20', hour: 7, minute: 30, tipo: 'MAT' },
+  { date: '2026-06-20', hour: 8, minute: 30, tipo: 'MAT' },
 ];
 
 // ── Main ───────────────────────────────────────────────────────────────────────
